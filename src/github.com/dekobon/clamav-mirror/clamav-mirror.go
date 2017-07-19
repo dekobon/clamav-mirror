@@ -4,6 +4,7 @@ import (
 	"log"
 	"os"
 	"net"
+	"github.com/pborman/getopt"
 	"path/filepath"
 	"fmt"
 	"strings"
@@ -11,18 +12,41 @@ import (
 
 func main() {
 	logger := log.New(os.Stdout, "", log.LstdFlags);
+	verboseMode := parseCliFlags();
 
 	sigtoolPath := findSigtoolPath();
-	logger.Printf("ClamAV executable sigtool found at path: %v", sigtoolPath);
+	if (verboseMode) {
+		logger.Printf("ClamAV executable sigtool found at path: %v", sigtoolPath);
+	}
 
 	var mirrorDomain string = "current.cvd.clamav.net";
 	var mirrorTxtRecord string = pullTxtRecord(mirrorDomain);
-	logger.Printf("TXT record for [%v]: %v", mirrorDomain, mirrorTxtRecord);
+
+	if (verboseMode) {
+		logger.Printf("TXT record for [%v]: %v", mirrorDomain, mirrorTxtRecord);
+	}
 
 	clamav, mainv, dailyv, x, y, z, safebrowsingv, bytecodev := parseTxtRecord(mirrorTxtRecord);
-	logger.Printf("TXT record values parsed: " +
-		"[clamav=%v,mainv=%v,dailyv=%v,x=%v,y=%v,z=%v,safebrowsingv=%v,bytecodev=%v",
-		clamav, mainv, dailyv, x, y, z, safebrowsingv, bytecodev);
+
+	if (verboseMode) {
+		logger.Printf("TXT record values parsed: " +
+			"[clamav=%v,mainv=%v,dailyv=%v,x=%v,y=%v,z=%v,safebrowsingv=%v,bytecodev=%v",
+			clamav, mainv, dailyv, x, y, z, safebrowsingv, bytecodev);
+	}
+}
+
+func parseCliFlags() (bool) {
+	verbosePart := getopt.BoolLong("verbose", 'v', "Enable verbose mode with additional debugging information");
+	getopt.Parse();
+
+	var verboseMode bool = *verbosePart;
+
+	return verboseMode;
+}
+
+func help() {
+	getopt.Usage();
+	os.Exit(0);
 }
 
 func pullTxtRecord(mirrorDomain string) (string) {
@@ -31,13 +55,11 @@ func pullTxtRecord(mirrorDomain string) (string) {
 	if (err != nil) {
 		msg := fmt.Sprintf("Unable to resolve TXT record for %v", mirrorDomain);
 		log.Fatal(msg, err);
-		os.Exit(1);
 	}
 
 	if (len(mirrorTxtRecords) < 1) {
 		msg := fmt.Sprintf("No TXT records returned for %v", mirrorDomain);
 		log.Fatal(msg);
-		os.Exit(1);
 	}
 
 	return mirrorTxtRecords[0];
@@ -65,7 +87,6 @@ func findSigtoolPath() (path string) {
 		if (err != nil) {
 			msg := fmt.Sprintf("Error parsing absolute path for: %v", localPath);
 			log.Fatal(msg, err);
-			os.Exit(1);
 		}
 
 		return execPath;
@@ -80,7 +101,6 @@ func findSigtoolPath() (path string) {
 
 	log.Fatal("The ClamAV executable sigtool was not found in the " +
 		"current directory nor in the system path");
-	os.Exit(1);
 
 	return;
 }
