@@ -1,12 +1,17 @@
 package main
 
 import (
+	"bufio"
 	"errors"
 	"fmt"
 	"golang.org/x/sys/unix"
+	"io"
+	"io/ioutil"
 	"log"
 	"net"
+	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 )
@@ -14,6 +19,8 @@ import (
 import (
 	"github.com/hashicorp/errwrap"
 	"github.com/pborman/getopt"
+	"math"
+	"strconv"
 )
 
 var logger *log.Logger
@@ -27,7 +34,7 @@ func init() {
 func main() {
 	verboseMode, dataFilePath := parseCliFlags()
 
-	if (verboseMode) {
+	if verboseMode {
 		logger.Printf("Data file directory: %v", dataFilePath)
 	}
 
@@ -60,7 +67,9 @@ func main() {
 			clamav, mainv, dailyv, x, y, z, safebrowsingv, bytecodev)
 	}
 
-	updateFile(dataFilePath)
+	updateFile(verboseMode, dataFilePath, sigtoolPath, "main", mainv)
+	updateFile(verboseMode, dataFilePath, sigtoolPath, "daily", dailyv)
+	updateFile(verboseMode, dataFilePath, sigtoolPath, "bytecode", bytecodev)
 }
 
 func parseCliFlags() (bool, string) {
@@ -125,7 +134,7 @@ func findSigtoolPath() (string, error) {
 		execPath, err := filepath.Abs(localPath)
 
 		if err != nil {
-			msg := fmt.Sprintf("Error parsing absolute path for: %v. {{err}}", localPath)
+			msg := fmt.Sprintf("Error parsing absolute path for [%v]. {{err}}", localPath)
 			return "", errwrap.Wrapf(msg, err)
 		}
 
@@ -159,6 +168,149 @@ func isWritable(directory string) (writable bool) {
 	return unix.Access(directory, unix.W_OK) == nil
 }
 
-func updateFile(file string) {
+func updateFile(verboseMode bool, dataFilePath string, sigtoolPath string,
+	filePrefix string, currentVersion string) error {
 
+	filename := filePrefix + ".cvd"
+	localFilePath := dataFilePath + string(filepath.Separator) + filename
+
+	if !exists(localFilePath) {
+		logger.Printf("Local copy of [%v] does not exist - initiating download.",
+			localFilePath)
+		err := downloadFile(verboseMode, filename, localFilePath)
+
+		if err != nil {
+			return err
+		} else {
+			return nil
+		}
+	}
+
+	if verboseMode {
+		logger.Printf("Local copy of [%v] already exists - "+
+			"initiating diff based update", localFilePath)
+	}
+
+	oldVersion, err := findLocalVersion(localFilePath, sigtoolPath)
+
+	if err != nil || oldVersion < 0 {
+		logger.Printf("There was a problem with the version [%v] of file [%v]. "+
+			"The file will be downloaded again. Original Error: %v", oldVersion, localFilePath, err)
+		err := downloadFile(verboseMode, filename, localFilePath)
+
+		if err != nil {
+			return err
+		} else {
+			return nil
+		}
+	}
+
+	if verboseMode {
+		logger.Printf("%v current version: %v", filename, oldVersion)
+	}
+
+	return nil
+}
+
+func findLocalVersion(localFilePath string, sigtoolPath string) (int64, error) {
+	var versionDelim string = "Version:"
+	var errVersion int64 = -1
+
+	cmd := exec.Command(sigtoolPath, "-i", localFilePath)
+	stdout, err := cmd.StdoutPipe()
+
+	defer stdout.Close()
+
+	if err != nil {
+		return errVersion, errwrap.Wrapf("Error instantiating sigtool command. {{err}}", err)
+	}
+
+	if err := cmd.Start(); err != nil {
+		return errVersion, errwrap.Wrapf("Error running sigtool. {{err}}", err)
+	}
+
+	scanner := bufio.NewScanner(stdout)
+	var version int64 = math.MinInt64
+	var validated bool = false
+
+	for scanner.Scan() {
+		line := scanner.Text()
+
+		if strings.HasPrefix(line, versionDelim) {
+			s := strings.SplitAfter(line, versionDelim+" ")
+			versionString := strings.TrimSpace(s[1])
+			parsedVersion, err := strconv.ParseInt(versionString, 10, 64)
+
+			if err != nil {
+				msg := fmt.Sprintf("Error converting [%v] to 64-bit integer. {{err}}",
+					versionString)
+				return errVersion, errwrap.Wrapf(msg, err)
+			}
+
+			version = parsedVersion
+		}
+
+		if strings.HasPrefix(line, "Verification OK") {
+			validated = true
+		}
+	}
+
+	if !validated {
+		return errVersion, errors.New("The file was not reported as validated")
+	}
+
+	if version == math.MinInt64 {
+		return errVersion, errors.New("No version information was available for file")
+	}
+
+	if err := scanner.Err(); err != nil {
+		return errVersion, errwrap.Wrapf("Error parsing sigtool STDOUT", err)
+	}
+
+	if err := cmd.Wait(); err != nil {
+		return errVersion, errwrap.Wrapf("Error waiting for sigtool STDOUT to flush", err)
+	}
+
+	return version, nil
+}
+
+func downloadFile(verboseMode bool, filename string, localFilePath string) error {
+	downloadMirror := "http://database.clamav.net"
+	downloadUrl := downloadMirror + "/" + filename
+
+	output, err := ioutil.TempFile(os.TempDir(), filename+"-")
+
+	if verboseMode {
+		logger.Printf("Downloading to temporary file: [%v]", output.Name())
+	}
+
+	if err != nil {
+		msg := fmt.Sprintf("Unable to create file: [%v]. {{err}}", output.Name())
+		return errwrap.Wrapf(msg, err)
+	}
+
+	defer output.Close()
+
+	response, err := http.Get(downloadUrl)
+
+	if err != nil {
+		msg := fmt.Sprintf("Unable to retrieve file from: [%v]. {{err}}", downloadUrl)
+		return errwrap.Wrapf(msg, err)
+	}
+
+	defer response.Body.Close()
+
+	n, err := io.Copy(output, response.Body)
+
+	if err != nil {
+		msg := fmt.Sprintf("Error copying data from URL [%v] to local file [%v]. {{err}}",
+			downloadUrl, localFilePath)
+		return errwrap.Wrapf(msg, err)
+	}
+
+	os.Rename(output.Name(), localFilePath)
+
+	logger.Printf("Download complete: %v --> %v [%v bytes]", downloadUrl, localFilePath, n)
+
+	return nil
 }
