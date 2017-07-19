@@ -3,13 +3,17 @@ package main
 import (
 	"errors"
 	"fmt"
-	"github.com/hashicorp/errwrap"
-	"github.com/pborman/getopt"
+	"golang.org/x/sys/unix"
 	"log"
 	"net"
 	"os"
 	"path/filepath"
 	"strings"
+)
+
+import (
+	"github.com/hashicorp/errwrap"
+	"github.com/pborman/getopt"
 )
 
 var logger *log.Logger
@@ -22,6 +26,10 @@ func init() {
 
 func main() {
 	verboseMode, dataFilePath := parseCliFlags()
+
+	if (verboseMode) {
+		logger.Printf("Data file directory: %v", dataFilePath)
+	}
 
 	sigtoolPath, err := findSigtoolPath()
 
@@ -73,6 +81,12 @@ func parseCliFlags() (bool, string) {
 	if err != nil {
 		msg := fmt.Sprintf("Unable to parse absolute path of data file path: %v",
 			*dataFilePart)
+		logFatal.Fatal(msg)
+	}
+
+	if !isWritable(dataFileAbsPath) {
+		msg := fmt.Sprintf("Data file path doesn't have write access for "+
+			"current user at path: %v", dataFileAbsPath)
 		logFatal.Fatal(msg)
 	}
 
@@ -134,13 +148,15 @@ func findSigtoolPath() (string, error) {
 func exists(filePath string) (exists bool) {
 	exists = true
 
-	_, err := os.Stat(filePath)
-
-	if os.IsNotExist(err) {
+	if _, err := os.Stat(filePath); os.IsNotExist(err) {
 		exists = false
 	}
 
 	return
+}
+
+func isWritable(directory string) (writable bool) {
+	return unix.Access(directory, unix.W_OK) == nil
 }
 
 func updateFile(file string) {
