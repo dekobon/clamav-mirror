@@ -5,6 +5,9 @@ import (
 	"golang.org/x/sys/unix"
 )
 
+/*
+ * Function that determines if a given path exists.
+ */
 func exists(filePath string) (exists bool) {
 	exists = true
 
@@ -15,6 +18,9 @@ func exists(filePath string) (exists bool) {
 	return
 }
 
+/*
+ * Function that determines if a given directory can be written to.
+ */
 func isWritable(directory string) (writable bool) {
 	return unix.Access(directory, unix.W_OK) == nil
 }

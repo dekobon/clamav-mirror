@@ -46,7 +46,10 @@ func main() {
  * Functional entry point to the application. Use this method to invoke the
  * downloader from external code.
  */
-func run(verboseMode bool, dataFilePath string, downloadMirrorUrl string) error {
+func run(verboseMode bool, dataFilePath string, downloadMirrorUrl string,
+diffCountThreshold uint16) error {
+	logger.Println("Updating ClamAV signatures")
+
 	if verboseMode {
 		logger.Printf("Data file directory: %v", dataFilePath)
 	}
@@ -82,35 +85,34 @@ func run(verboseMode bool, dataFilePath string, downloadMirrorUrl string) error 
 		logger.Printf("TXT record values parsed: %v", versions)
 	}
 
-	err = updateFile(verboseMode, dataFilePath, sigtoolPath, "main", versions.MainVersion,
-		downloadMirrorUrl)
-
-	if err != nil {
-		return err
+	var signaturesToUpdate = [3]Signature{
+		{Name: "main", Version: versions.MainVersion },
+		{Name: "daily", Version: versions.DailyVersion},
+		{Name: "bytecode", Version: versions.ByteCodeVersion},
 	}
 
-	err = updateFile(verboseMode, dataFilePath, sigtoolPath, "daily", versions.DailyVersion,
-		downloadMirrorUrl)
+	for _, signature := range signaturesToUpdate {
+		err = updateFile(verboseMode, dataFilePath, sigtoolPath, signature,
+			downloadMirrorUrl, diffCountThreshold)
 
-	if err != nil {
-		return err
-	}
-
-	err = updateFile(verboseMode, dataFilePath, sigtoolPath, "bytecode", versions.ByteCodeVersion,
-		downloadMirrorUrl)
-
-	if err != nil {
-		return err
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
 }
 
-func parseCliFlags() (bool, string, string) {
+/*
+ * Function that parses the CLI options passed to the application.
+ */
+func parseCliFlags() (bool, string, string, uint16) {
 	verbosePart := getopt.BoolLong("verbose", 'v',
 		"Enable verbose mode with additional debugging information")
 	dataFilePart := getopt.StringLong("data-file-path", 'd',
 		"/var/clamav/data", "Path to ClamAV data files")
+	diffThresholdPart := getopt.Uint16Long("diff-count-threshold", 't',
+		100, "Number of diffs to download until we redownload the signature files")
 	downloadMirrorPart := getopt.StringLong("download-mirror-url", 'm',
 		"http://database.clamav.net", "URL to download signature updates from")
 
@@ -136,9 +138,13 @@ func parseCliFlags() (bool, string, string) {
 		logFatal.Fatal(msg)
 	}
 
-	return *verbosePart, dataFileAbsPath, *downloadMirrorPart
+	return *verbosePart, dataFileAbsPath, *downloadMirrorPart, *diffThresholdPart
 }
 
+/*
+ * Function that gets retrieves the value of the DNS TXT record published by
+ * ClamAV.
+ */
 func pullTxtRecord(mirrorDomain string) (string, error) {
 	mirrorTxtRecords, err := net.LookupTXT(mirrorDomain)
 
@@ -155,6 +161,10 @@ func pullTxtRecord(mirrorDomain string) (string, error) {
 	return mirrorTxtRecords[0], nil
 }
 
+/*
+ * Function that parses the DNS TXT record published by ClamAV for the latest
+ * signature versions.
+ */
 func parseTxtRecord(mirrorTxtRecord string) (SignatureVersions, error) {
 	var versions SignatureVersions
 
@@ -194,6 +204,9 @@ func parseTxtRecord(mirrorTxtRecord string) (SignatureVersions, error) {
 	return versions, nil
 }
 
+/*
+ * Function that finds the path to the sigtool utility on the local system.
+ */
 func findSigtoolPath() (string, error) {
 	var execName string = "sigtool"
 	var separator string = string(os.PathSeparator)
@@ -225,14 +238,20 @@ func findSigtoolPath() (string, error) {
 	return "", err
 }
 
+/*
+ * Function that updates the data files for a given signature by either
+ * downloading the datafile or downloading diffs.
+ */
 func updateFile(verboseMode bool, dataFilePath string, sigtoolPath string,
-	filePrefix string, currentVersion int64, downloadMirrorUrl string) error {
-
+	signature Signature, downloadMirrorUrl string, diffCountThreshold uint16) error {
+	filePrefix  := signature.Name
+	currentVersion := signature.Version
 	separator := string(filepath.Separator)
 
 	filename := filePrefix + ".cvd"
 	localFilePath := dataFilePath + separator + filename
 
+	// Download the signatures for the first time if they don't exist
 	if !exists(localFilePath) {
 		logger.Printf("Local copy of [%v] does not exist - initiating download.",
 			localFilePath)
@@ -268,6 +287,8 @@ func updateFile(verboseMode bool, dataFilePath string, sigtoolPath string,
 		logger.Printf("%v current version: %v", filename, oldVersion)
 	}
 
+	/* Attempt to download a diff for each version until we reach the current
+	 * version. */
 	for count := oldVersion + 1; count <= currentVersion; count++ {
 		diffFilename := filePrefix + "-" + strconv.FormatInt(count, 10) + ".cdiff"
 		localDiffFilePath := dataFilePath + separator + diffFilename
@@ -300,10 +321,10 @@ func updateFile(verboseMode bool, dataFilePath string, sigtoolPath string,
 		}
 	}
 
-	/* If we have too many diffs, we go ahead and redownload the whole signatures
+	/* If we have too many diffs, we go ahead and download the whole signatures
 	 * after we have the diffs so that our base signature files stay relatively
 	 * current. */
-	if currentVersion-oldVersion > 100 {
+	if currentVersion-oldVersion > int64(diffCountThreshold) {
 		logger.Printf("Original signature has deviated beyond threshold from diffs, "+
 			"so we are downloading the file [%v] again", filename)
 
@@ -317,6 +338,10 @@ func updateFile(verboseMode bool, dataFilePath string, sigtoolPath string,
 	return nil
 }
 
+/*
+ * Function that uses the ClamAV sigtool executable to extract the version number
+ * from a signature definition file.
+ */
 func findLocalVersion(localFilePath string, sigtoolPath string) (int64, error) {
 	var versionDelim string = "Version:"
 	var errVersion int64 = -1
@@ -379,6 +404,10 @@ func findLocalVersion(localFilePath string, sigtoolPath string) (int64, error) {
 	return version, nil
 }
 
+/*
+ * Function that downloads a file from the mirror URL and moves it into the
+ * data directory if it was successfully downloaded.
+ */
 func downloadFile(verboseMode bool, filename string, localFilePath string,
 	downloadMirrorUrl string) (int, error) {
 
