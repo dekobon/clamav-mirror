@@ -425,12 +425,3 @@ func downloadFile(verboseMode bool, filename string, localFilePath string,
 
 	return response.StatusCode, nil
 }
-
-//func findRemoteFileEtag(verboseMode bool, filename string, localFilePath string,
-//	downloadMirrorUrl string) (int, error) {
-//
-//	unknownStatus := -1
-//	downloadUrl := downloadMirrorUrl + "/" + filename
-//
-//	response, err := http.Head(downloadUrl)
-//}
