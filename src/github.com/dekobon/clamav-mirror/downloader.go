@@ -4,23 +4,22 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
-	"golang.org/x/sys/unix"
 	"io"
 	"io/ioutil"
 	"log"
+	"math"
 	"net"
 	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 )
 
 import (
 	"github.com/hashicorp/errwrap"
 	"github.com/pborman/getopt"
-	"math"
-	"strconv"
 )
 
 var logger *log.Logger
@@ -31,9 +30,23 @@ func init() {
 	logFatal = log.New(os.Stderr, "", log.LstdFlags|log.Lshortfile)
 }
 
+/*
+ * Main entry point to the downloader application. This will allow you to run
+ * the downloader as a stand-alone binary.
+ */
 func main() {
-	verboseMode, dataFilePath, downloadMirrorUrl := parseCliFlags()
+	err := run(parseCliFlags())
 
+	if err != nil {
+		logFatal.Fatal(err)
+	}
+}
+
+/*
+ * Functional entry point to the application. Use this method to invoke the
+ * downloader from external code.
+ */
+func run(verboseMode bool, dataFilePath string, downloadMirrorUrl string) error {
 	if verboseMode {
 		logger.Printf("Data file directory: %v", dataFilePath)
 	}
@@ -41,7 +54,7 @@ func main() {
 	sigtoolPath, err := findSigtoolPath()
 
 	if err != nil {
-		logFatal.Fatal(err)
+		return err
 	}
 
 	if verboseMode {
@@ -52,7 +65,7 @@ func main() {
 	mirrorTxtRecord, err := pullTxtRecord(mirrorDomain)
 
 	if err != nil {
-		logFatal.Fatal(err)
+		return err
 	}
 
 	if verboseMode {
@@ -62,7 +75,7 @@ func main() {
 	versions, err := parseTxtRecord(mirrorTxtRecord)
 
 	if err != nil {
-		logFatal.Fatal(err)
+		return err
 	}
 
 	if verboseMode {
@@ -73,22 +86,24 @@ func main() {
 		downloadMirrorUrl)
 
 	if err != nil {
-		logFatal.Fatal(err)
+		return err
 	}
 
 	err = updateFile(verboseMode, dataFilePath, sigtoolPath, "daily", versions.DailyVersion,
 		downloadMirrorUrl)
 
 	if err != nil {
-		logFatal.Fatal(err)
+		return err
 	}
 
 	err = updateFile(verboseMode, dataFilePath, sigtoolPath, "bytecode", versions.ByteCodeVersion,
 		downloadMirrorUrl)
 
 	if err != nil {
-		logFatal.Fatal(err)
+		return err
 	}
+
+	return nil
 }
 
 func parseCliFlags() (bool, string, string) {
@@ -140,8 +155,8 @@ func pullTxtRecord(mirrorDomain string) (string, error) {
 	return mirrorTxtRecords[0], nil
 }
 
-func parseTxtRecord(mirrorTxtRecord string) (FileVersions, error) {
-	var versions FileVersions
+func parseTxtRecord(mirrorTxtRecord string) (SignatureVersions, error) {
+	var versions SignatureVersions
 
 	s := strings.SplitN(mirrorTxtRecord, ":", 8)
 
@@ -169,7 +184,7 @@ func parseTxtRecord(mirrorTxtRecord string) (FileVersions, error) {
 		return versions, errwrap.Wrapf("Error parsing bytecode version. {{err}}", err)
 	}
 
-	versions = FileVersions{
+	versions = SignatureVersions{
 		MainVersion:         mainv,
 		DailyVersion:        daily,
 		SafeBrowsingVersion: safebrowsingv,
@@ -208,20 +223,6 @@ func findSigtoolPath() (string, error) {
 		"current directory nor in the system path.")
 
 	return "", err
-}
-
-func exists(filePath string) (exists bool) {
-	exists = true
-
-	if _, err := os.Stat(filePath); os.IsNotExist(err) {
-		exists = false
-	}
-
-	return
-}
-
-func isWritable(directory string) (writable bool) {
-	return unix.Access(directory, unix.W_OK) == nil
 }
 
 func updateFile(verboseMode bool, dataFilePath string, sigtoolPath string,

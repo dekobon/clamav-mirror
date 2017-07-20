@@ -1,6 +1,6 @@
 package main
 
-type FileVersions struct {
+type SignatureVersions struct {
 	MainVersion         int64
 	DailyVersion        int64
 	SafeBrowsingVersion int64
