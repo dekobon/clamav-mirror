@@ -28,11 +28,11 @@ var logFatal *log.Logger
 
 func init() {
 	logger = log.New(os.Stdout, "", log.LstdFlags)
-	logFatal = log.New(os.Stderr, "", log.LstdFlags)
+	logFatal = log.New(os.Stderr, "", log.LstdFlags|log.Lshortfile)
 }
 
 func main() {
-	verboseMode, dataFilePath := parseCliFlags()
+	verboseMode, dataFilePath, downloadMirrorUrl := parseCliFlags()
 
 	if verboseMode {
 		logger.Printf("Data file directory: %v", dataFilePath)
@@ -59,24 +59,46 @@ func main() {
 		logger.Printf("TXT record for [%v]: %v", mirrorDomain, mirrorTxtRecord)
 	}
 
-	clamav, mainv, dailyv, x, y, z, safebrowsingv, bytecodev := parseTxtRecord(mirrorTxtRecord)
+	versions, err := parseTxtRecord(mirrorTxtRecord)
 
-	if verboseMode {
-		logger.Printf("TXT record values parsed: "+
-			"[clamav=%v,mainv=%v,dailyv=%v,x=%v,y=%v,z=%v,safebrowsingv=%v,bytecodev=%v",
-			clamav, mainv, dailyv, x, y, z, safebrowsingv, bytecodev)
+	if err != nil {
+		logFatal.Fatal(err)
 	}
 
-	updateFile(verboseMode, dataFilePath, sigtoolPath, "main", mainv)
-	updateFile(verboseMode, dataFilePath, sigtoolPath, "daily", dailyv)
-	updateFile(verboseMode, dataFilePath, sigtoolPath, "bytecode", bytecodev)
+	if verboseMode {
+		logger.Printf("TXT record values parsed: %v", versions)
+	}
+
+	err = updateFile(verboseMode, dataFilePath, sigtoolPath, "main", versions.MainVersion,
+		downloadMirrorUrl)
+
+	if err != nil {
+		logFatal.Fatal(err)
+	}
+
+	err = updateFile(verboseMode, dataFilePath, sigtoolPath, "daily", versions.DailyVersion,
+		downloadMirrorUrl)
+
+	if err != nil {
+		logFatal.Fatal(err)
+	}
+
+	err = updateFile(verboseMode, dataFilePath, sigtoolPath, "bytecode", versions.ByteCodeVersion,
+		downloadMirrorUrl)
+
+	if err != nil {
+		logFatal.Fatal(err)
+	}
 }
 
-func parseCliFlags() (bool, string) {
+func parseCliFlags() (bool, string, string) {
 	verbosePart := getopt.BoolLong("verbose", 'v',
 		"Enable verbose mode with additional debugging information")
 	dataFilePart := getopt.StringLong("data-file-path", 'd',
 		"/var/clamav/data", "Path to ClamAV data files")
+	downloadMirrorPart := getopt.StringLong("download-mirror-url", 'm',
+		"http://database.clamav.net", "URL to download signature updates from")
+
 	getopt.Parse()
 
 	if !exists(*dataFilePart) {
@@ -99,7 +121,7 @@ func parseCliFlags() (bool, string) {
 		logFatal.Fatal(msg)
 	}
 
-	return *verbosePart, dataFileAbsPath
+	return *verbosePart, dataFileAbsPath, *downloadMirrorPart
 }
 
 func pullTxtRecord(mirrorDomain string) (string, error) {
@@ -118,9 +140,43 @@ func pullTxtRecord(mirrorDomain string) (string, error) {
 	return mirrorTxtRecords[0], nil
 }
 
-func parseTxtRecord(mirrorTxtRecord string) (string, string, string, string, string, string, string, string) {
+func parseTxtRecord(mirrorTxtRecord string) (FileVersions, error) {
+	var versions FileVersions
+
 	s := strings.SplitN(mirrorTxtRecord, ":", 8)
-	return s[0], s[1], s[2], s[3], s[4], s[5], s[6], s[7]
+
+	mainv, err := strconv.ParseInt(s[1], 10, 64)
+
+	if err != nil {
+		return versions, errwrap.Wrapf("Error parsing main version. {{err}}", err)
+	}
+
+	daily, err := strconv.ParseInt(s[2], 10, 64)
+
+	if err != nil {
+		return versions, errwrap.Wrapf("Error parsing daily version. {{err}}", err)
+	}
+
+	safebrowsingv, err := strconv.ParseInt(s[6], 10, 64)
+
+	if err != nil {
+		return versions, errwrap.Wrapf("Error parsing safe browsing version. {{err}}", err)
+	}
+
+	bytecodev, err := strconv.ParseInt(s[7], 10, 64)
+
+	if err != nil {
+		return versions, errwrap.Wrapf("Error parsing bytecode version. {{err}}", err)
+	}
+
+	versions = FileVersions{
+		MainVersion:         mainv,
+		DailyVersion:        daily,
+		SafeBrowsingVersion: safebrowsingv,
+		ByteCodeVersion:     bytecodev,
+	}
+
+	return versions, nil
 }
 
 func findSigtoolPath() (string, error) {
@@ -169,15 +225,17 @@ func isWritable(directory string) (writable bool) {
 }
 
 func updateFile(verboseMode bool, dataFilePath string, sigtoolPath string,
-	filePrefix string, currentVersion string) error {
+	filePrefix string, currentVersion int64, downloadMirrorUrl string) error {
+
+	separator := string(filepath.Separator)
 
 	filename := filePrefix + ".cvd"
-	localFilePath := dataFilePath + string(filepath.Separator) + filename
+	localFilePath := dataFilePath + separator + filename
 
 	if !exists(localFilePath) {
 		logger.Printf("Local copy of [%v] does not exist - initiating download.",
 			localFilePath)
-		err := downloadFile(verboseMode, filename, localFilePath)
+		_, err := downloadFile(verboseMode, filename, localFilePath, downloadMirrorUrl)
 
 		if err != nil {
 			return err
@@ -196,7 +254,7 @@ func updateFile(verboseMode bool, dataFilePath string, sigtoolPath string,
 	if err != nil || oldVersion < 0 {
 		logger.Printf("There was a problem with the version [%v] of file [%v]. "+
 			"The file will be downloaded again. Original Error: %v", oldVersion, localFilePath, err)
-		err := downloadFile(verboseMode, filename, localFilePath)
+		_, err := downloadFile(verboseMode, filename, localFilePath, downloadMirrorUrl)
 
 		if err != nil {
 			return err
@@ -207,6 +265,52 @@ func updateFile(verboseMode bool, dataFilePath string, sigtoolPath string,
 
 	if verboseMode {
 		logger.Printf("%v current version: %v", filename, oldVersion)
+	}
+
+	for count := oldVersion + 1; count <= currentVersion; count++ {
+		diffFilename := filePrefix + "-" + strconv.FormatInt(count, 10) + ".cdiff"
+		localDiffFilePath := dataFilePath + separator + diffFilename
+
+		// Don't bother downloading a diff if it already exists
+		if exists(localDiffFilePath) {
+			if verboseMode {
+				logger.Printf("Local copy of [%v] already exists, not downloading",
+					localDiffFilePath)
+			}
+			continue
+		}
+
+		_, err := downloadFile(verboseMode, diffFilename, localDiffFilePath, downloadMirrorUrl)
+
+		/* Give up attempting to download incremental diffs if we can't find a
+		 * diff file corresponding to the version needed. We just go download
+		 * the main signature file again if we hit this case. */
+		if err != nil {
+			logger.Printf("There was a problem downloading diff [%v] of file [%v]. "+
+				"The file original file [%v] will be downloaded again. Original Error: %v",
+				count, diffFilename, filename, err)
+
+			_, err := downloadFile(verboseMode, filename, localFilePath, downloadMirrorUrl)
+
+			if err != nil {
+				return err
+			}
+			break
+		}
+	}
+
+	/* If we have too many diffs, we go ahead and redownload the whole signatures
+	 * after we have the diffs so that our base signature files stay relatively
+	 * current. */
+	if currentVersion-oldVersion > 100 {
+		logger.Printf("Original signature has deviated beyond threshold from diffs, "+
+			"so we are downloading the file [%v] again", filename)
+
+		_, err := downloadFile(verboseMode, filename, localFilePath, downloadMirrorUrl)
+
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -274,9 +378,11 @@ func findLocalVersion(localFilePath string, sigtoolPath string) (int64, error) {
 	return version, nil
 }
 
-func downloadFile(verboseMode bool, filename string, localFilePath string) error {
-	downloadMirror := "http://database.clamav.net"
-	downloadUrl := downloadMirror + "/" + filename
+func downloadFile(verboseMode bool, filename string, localFilePath string,
+	downloadMirrorUrl string) (int, error) {
+
+	unknownStatus := -1
+	downloadUrl := downloadMirrorUrl + "/" + filename
 
 	output, err := ioutil.TempFile(os.TempDir(), filename+"-")
 
@@ -286,7 +392,7 @@ func downloadFile(verboseMode bool, filename string, localFilePath string) error
 
 	if err != nil {
 		msg := fmt.Sprintf("Unable to create file: [%v]. {{err}}", output.Name())
-		return errwrap.Wrapf(msg, err)
+		return unknownStatus, errwrap.Wrapf(msg, err)
 	}
 
 	defer output.Close()
@@ -295,7 +401,12 @@ func downloadFile(verboseMode bool, filename string, localFilePath string) error
 
 	if err != nil {
 		msg := fmt.Sprintf("Unable to retrieve file from: [%v]. {{err}}", downloadUrl)
-		return errwrap.Wrapf(msg, err)
+		return unknownStatus, errwrap.Wrapf(msg, err)
+	}
+
+	if response.StatusCode != http.StatusOK {
+		msg := fmt.Sprintf("Unable to download file: [%v]", response.Status)
+		return response.StatusCode, errors.New(msg)
 	}
 
 	defer response.Body.Close()
@@ -305,12 +416,21 @@ func downloadFile(verboseMode bool, filename string, localFilePath string) error
 	if err != nil {
 		msg := fmt.Sprintf("Error copying data from URL [%v] to local file [%v]. {{err}}",
 			downloadUrl, localFilePath)
-		return errwrap.Wrapf(msg, err)
+		return response.StatusCode, errwrap.Wrapf(msg, err)
 	}
 
 	os.Rename(output.Name(), localFilePath)
 
 	logger.Printf("Download complete: %v --> %v [%v bytes]", downloadUrl, localFilePath, n)
 
-	return nil
+	return response.StatusCode, nil
 }
+
+//func findRemoteFileEtag(verboseMode bool, filename string, localFilePath string,
+//	downloadMirrorUrl string) (int, error) {
+//
+//	unknownStatus := -1
+//	downloadUrl := downloadMirrorUrl + "/" + filename
+//
+//	response, err := http.Head(downloadUrl)
+//}
