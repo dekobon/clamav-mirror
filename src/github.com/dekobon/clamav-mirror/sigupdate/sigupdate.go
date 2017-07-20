@@ -22,6 +22,9 @@ import (
 	"github.com/pborman/getopt"
 )
 
+var githash = "unknown"
+var buildstamp = "unknown"
+
 var logger *log.Logger
 var logFatal *log.Logger
 
@@ -109,6 +112,8 @@ diffCountThreshold uint16) error {
 func parseCliFlags() (bool, string, string, uint16) {
 	verbosePart := getopt.BoolLong("verbose", 'v',
 		"Enable verbose mode with additional debugging information")
+	versionPart := getopt.BoolLong("version", 'V',
+		"Display the version and exit")
 	dataFilePart := getopt.StringLong("data-file-path", 'd',
 		"/var/clamav/data", "Path to ClamAV data files")
 	diffThresholdPart := getopt.Uint16Long("diff-count-threshold", 't',
@@ -117,6 +122,16 @@ func parseCliFlags() (bool, string, string, uint16) {
 		"http://database.clamav.net", "URL to download signature updates from")
 
 	getopt.Parse()
+
+	if *versionPart {
+		fmt.Println("sigupdate")
+		fmt.Println("")
+		fmt.Printf("License        : MPLv2\n")
+		fmt.Printf("Git Commit Hash: %v\n", githash)
+		fmt.Printf("UTC Build Time : %v\n", buildstamp)
+
+		os.Exit(0)
+	}
 
 	if !exists(*dataFilePart) {
 		msg := fmt.Sprintf("Data file path doesn't exist or isn't accessible: %v",

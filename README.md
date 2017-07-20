@@ -18,7 +18,7 @@ use your own webserver to serve those signatures out of your data directory.
 #### Usage
 
 ```
-Usage: sigupdate [-v] [-d value] [-m value] [-t value] [parameters ...]
+Usage: sigupdate [-vV] [-d value] [-m value] [-t value] [parameters ...]
  -d, --data-file-path=value
                 Path to ClamAV data files
  -m, --download-mirror-url=value
@@ -26,6 +26,8 @@ Usage: sigupdate [-v] [-d value] [-m value] [-t value] [parameters ...]
  -t, --diff-count-threshold=value
                 Number of diffs to download until we redownload the
                 signature files
+ -v, --verbose  Enable verbose mode with additional debugging information
+ -V, --version  Display the version and exit        
 ```
 
 ##### Data Directory
