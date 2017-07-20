@@ -20,6 +20,7 @@ import (
 import (
 	"github.com/hashicorp/errwrap"
 	"github.com/pborman/getopt"
+	"time"
 )
 
 var githash = "unknown"
@@ -431,6 +432,40 @@ func downloadFile(verboseMode bool, filename string, localFilePath string,
 
 	output, err := ioutil.TempFile(os.TempDir(), filename+"-")
 
+	if exists(localFilePath) {
+		localFileStat, err := os.Stat(localFilePath)
+
+		if err != nil {
+			return unknownStatus, errwrap.Wrapf("Unable to stat file. {{err}}", err)
+		}
+
+		localModTime := localFileStat.ModTime()
+		response, err := http.Head(downloadUrl)
+
+		if err != nil {
+			msg := fmt.Sprintf("Unable to complete HEAD request: [%v]. {{err}}", downloadUrl)
+			return response.StatusCode, errwrap.Wrapf(msg, err)
+		}
+
+		remoteModTime, err := http.ParseTime(response.Header.Get("Last-Modified"))
+
+		if verboseMode {
+			logger.Printf("Local file [%v] last-modified: %v", downloadUrl, localModTime)
+			logger.Printf("Remote file [%v] last-modified: %v", downloadUrl, remoteModTime)
+		}
+
+		if err != nil {
+			msg := fmt.Sprintf("Error parsing last-modified header [%v] for file [%v]. {{err}}",
+				response.Header.Get("Last-Modified"), downloadUrl)
+			return response.StatusCode, errwrap.Wrapf(msg, err)
+		}
+
+		if localModTime.After(remoteModTime) {
+			logger.Printf("Skipping download of [%v] because local copy is newer", downloadUrl)
+			return unknownStatus, nil
+		}
+	}
+
 	if verboseMode {
 		logger.Printf("Downloading to temporary file: [%v]", output.Name())
 	}
@@ -454,6 +489,14 @@ func downloadFile(verboseMode bool, filename string, localFilePath string,
 		return response.StatusCode, errors.New(msg)
 	}
 
+	lastModified, err := http.ParseTime(response.Header.Get("Last-Modified"))
+
+	if err != nil {
+		logger.Printf("Error parsing last-modified header [%v] for file: %v",
+			response.Header.Get("Last-Modified"), downloadUrl)
+		lastModified = time.Now()
+	}
+
 	defer response.Body.Close()
 
 	n, err := io.Copy(output, response.Body)
@@ -465,6 +508,9 @@ func downloadFile(verboseMode bool, filename string, localFilePath string,
 	}
 
 	os.Rename(output.Name(), localFilePath)
+	/* Change the last modified time so that we have a record that corresponds to the
+	 * server's timestamps. */
+	os.Chtimes(localFilePath, lastModified, lastModified)
 
 	logger.Printf("Download complete: %v --> %v [%v bytes]", downloadUrl, localFilePath, n)
 
