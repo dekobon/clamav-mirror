@@ -1,9 +1,7 @@
 package main
 
-/*
- * Data structure for storing the parsed results of the signature versions
- * published in ClamAV's TXT record.
- */
+// SignatureVersions is for storing the parsed results of the signature versions
+// published in ClamAV's TXT record.
 type SignatureVersions struct {
 	MainVersion         int64
 	DailyVersion        int64
@@ -11,10 +9,8 @@ type SignatureVersions struct {
 	ByteCodeVersion     int64
 }
 
-/*
- * Data structure for storing the definition of a single signature type.
- */
+// Signature is for storing the definition of a single signature type.
 type Signature struct {
-	Name string
+	Name    string
 	Version int64
 }

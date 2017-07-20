@@ -15,12 +15,12 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 )
 
 import (
 	"github.com/hashicorp/errwrap"
 	"github.com/pborman/getopt"
-	"time"
 )
 
 var githash = "unknown"
@@ -34,23 +34,19 @@ func init() {
 	logFatal = log.New(os.Stderr, "", log.LstdFlags|log.Lshortfile)
 }
 
-/*
- * Main entry point to the downloader application. This will allow you to run
- * the downloader as a stand-alone binary.
- */
+// Main entry point to the downloader application. This will allow you to run
+// the downloader as a stand-alone binary.
 func main() {
-	err := run(parseCliFlags())
+	err := runSignatureUpdate(parseCliFlags())
 
 	if err != nil {
 		logFatal.Fatal(err)
 	}
 }
 
-/*
- * Functional entry point to the application. Use this method to invoke the
- * downloader from external code.
- */
-func run(verboseMode bool, dataFilePath string, downloadMirrorUrl string,
+// Functional entry point to the application. Use this method to invoke the
+// downloader from external code.
+func runSignatureUpdate(verboseMode bool, dataFilePath string, downloadMirrorURL string,
 	diffCountThreshold uint16) error {
 	logger.Println("Updating ClamAV signatures")
 
@@ -68,7 +64,7 @@ func run(verboseMode bool, dataFilePath string, downloadMirrorUrl string,
 		logger.Printf("ClamAV executable sigtool found at path: %v", sigtoolPath)
 	}
 
-	var mirrorDomain string = "current.cvd.clamav.net"
+	mirrorDomain := "current.cvd.clamav.net"
 	mirrorTxtRecord, err := pullTxtRecord(mirrorDomain)
 
 	if err != nil {
@@ -97,7 +93,7 @@ func run(verboseMode bool, dataFilePath string, downloadMirrorUrl string,
 
 	for _, signature := range signaturesToUpdate {
 		err = updateFile(verboseMode, dataFilePath, sigtoolPath, signature,
-			downloadMirrorUrl, diffCountThreshold)
+			downloadMirrorURL, diffCountThreshold)
 
 		if err != nil {
 			return err
@@ -107,9 +103,7 @@ func run(verboseMode bool, dataFilePath string, downloadMirrorUrl string,
 	return nil
 }
 
-/*
- * Function that parses the CLI options passed to the application.
- */
+// Function that parses the CLI options passed to the application.
 func parseCliFlags() (bool, string, string, uint16) {
 	verbosePart := getopt.BoolLong("verbose", 'v',
 		"Enable verbose mode with additional debugging information")
@@ -157,10 +151,8 @@ func parseCliFlags() (bool, string, string, uint16) {
 	return *verbosePart, dataFileAbsPath, *downloadMirrorPart, *diffThresholdPart
 }
 
-/*
- * Function that gets retrieves the value of the DNS TXT record published by
- * ClamAV.
- */
+// Function that gets retrieves the value of the DNS TXT record published by
+// ClamAV.
 func pullTxtRecord(mirrorDomain string) (string, error) {
 	mirrorTxtRecords, err := net.LookupTXT(mirrorDomain)
 
@@ -177,10 +169,8 @@ func pullTxtRecord(mirrorDomain string) (string, error) {
 	return mirrorTxtRecords[0], nil
 }
 
-/*
- * Function that parses the DNS TXT record published by ClamAV for the latest
- * signature versions.
- */
+// Function that parses the DNS TXT record published by ClamAV for the latest
+// signature versions.
 func parseTxtRecord(mirrorTxtRecord string) (SignatureVersions, error) {
 	var versions SignatureVersions
 
@@ -220,16 +210,14 @@ func parseTxtRecord(mirrorTxtRecord string) (SignatureVersions, error) {
 	return versions, nil
 }
 
-/*
- * Function that finds the path to the sigtool utility on the local system.
- */
+// Function that finds the path to the sigtool utility on the local system.
 func findSigtoolPath() (string, error) {
-	var execName string = "sigtool"
-	var separator string = string(os.PathSeparator)
-	var envPathSeparator string = string(os.PathListSeparator)
-	var envPath string = os.Getenv("PATH")
+	execName := "sigtool"
+	separator := string(os.PathSeparator)
+	envPathSeparator := string(os.PathListSeparator)
+	envPath := os.Getenv("PATH")
+	localPath := "." + separator + execName
 
-	var localPath string = "." + separator + execName
 	if exists(localPath) {
 		execPath, err := filepath.Abs(localPath)
 
@@ -242,7 +230,8 @@ func findSigtoolPath() (string, error) {
 	}
 
 	for _, pathElement := range strings.Split(envPath, envPathSeparator) {
-		var execPath string = pathElement + separator + execName
+		execPath := pathElement + separator + execName
+
 		if exists(execPath) {
 			return execPath, nil
 		}
@@ -254,12 +243,10 @@ func findSigtoolPath() (string, error) {
 	return "", err
 }
 
-/*
- * Function that updates the data files for a given signature by either
- * downloading the datafile or downloading diffs.
- */
+// Function that updates the data files for a given signature by either
+// downloading the datafile or downloading diffs.
 func updateFile(verboseMode bool, dataFilePath string, sigtoolPath string,
-	signature Signature, downloadMirrorUrl string, diffCountThreshold uint16) error {
+	signature Signature, downloadMirrorURL string, diffCountThreshold uint16) error {
 	filePrefix := signature.Name
 	currentVersion := signature.Version
 	separator := string(filepath.Separator)
@@ -271,13 +258,13 @@ func updateFile(verboseMode bool, dataFilePath string, sigtoolPath string,
 	if !exists(localFilePath) {
 		logger.Printf("Local copy of [%v] does not exist - initiating download.",
 			localFilePath)
-		_, err := downloadFile(verboseMode, filename, localFilePath, downloadMirrorUrl)
+		_, err := downloadFile(verboseMode, filename, localFilePath, downloadMirrorURL)
 
 		if err != nil {
 			return err
-		} else {
-			return nil
 		}
+
+		return nil
 	}
 
 	if verboseMode {
@@ -290,13 +277,13 @@ func updateFile(verboseMode bool, dataFilePath string, sigtoolPath string,
 	if err != nil || oldVersion < 0 {
 		logger.Printf("There was a problem with the version [%v] of file [%v]. "+
 			"The file will be downloaded again. Original Error: %v", oldVersion, localFilePath, err)
-		_, err := downloadFile(verboseMode, filename, localFilePath, downloadMirrorUrl)
+		_, err := downloadFile(verboseMode, filename, localFilePath, downloadMirrorURL)
 
 		if err != nil {
 			return err
-		} else {
-			return nil
 		}
+
+		return nil
 	}
 
 	if verboseMode {
@@ -318,7 +305,7 @@ func updateFile(verboseMode bool, dataFilePath string, sigtoolPath string,
 			continue
 		}
 
-		_, err := downloadFile(verboseMode, diffFilename, localDiffFilePath, downloadMirrorUrl)
+		_, err := downloadFile(verboseMode, diffFilename, localDiffFilePath, downloadMirrorURL)
 
 		/* Give up attempting to download incremental diffs if we can't find a
 		 * diff file corresponding to the version needed. We just go download
@@ -328,7 +315,7 @@ func updateFile(verboseMode bool, dataFilePath string, sigtoolPath string,
 				"The file original file [%v] will be downloaded again. Original Error: %v",
 				count, diffFilename, filename, err)
 
-			_, err := downloadFile(verboseMode, filename, localFilePath, downloadMirrorUrl)
+			_, err := downloadFile(verboseMode, filename, localFilePath, downloadMirrorURL)
 
 			if err != nil {
 				return err
@@ -344,7 +331,7 @@ func updateFile(verboseMode bool, dataFilePath string, sigtoolPath string,
 		logger.Printf("Original signature has deviated beyond threshold from diffs, "+
 			"so we are downloading the file [%v] again", filename)
 
-		_, err := downloadFile(verboseMode, filename, localFilePath, downloadMirrorUrl)
+		_, err := downloadFile(verboseMode, filename, localFilePath, downloadMirrorURL)
 
 		if err != nil {
 			return err
@@ -354,13 +341,11 @@ func updateFile(verboseMode bool, dataFilePath string, sigtoolPath string,
 	return nil
 }
 
-/*
- * Function that uses the ClamAV sigtool executable to extract the version number
- * from a signature definition file.
- */
+// Function that uses the ClamAV sigtool executable to extract the version number
+// from a signature definition file.
 func findLocalVersion(localFilePath string, sigtoolPath string) (int64, error) {
-	var versionDelim string = "Version:"
-	var errVersion int64 = -1
+	versionDelim := "Version:"
+	errVersion := int64(-1)
 
 	cmd := exec.Command(sigtoolPath, "-i", localFilePath)
 	stdout, err := cmd.StdoutPipe()
@@ -377,7 +362,7 @@ func findLocalVersion(localFilePath string, sigtoolPath string) (int64, error) {
 
 	scanner := bufio.NewScanner(stdout)
 	var version int64 = math.MinInt64
-	var validated bool = false
+	validated := false
 
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -420,21 +405,19 @@ func findLocalVersion(localFilePath string, sigtoolPath string) (int64, error) {
 	return version, nil
 }
 
-/*
- * Function that downloads a file from the mirror URL and moves it into the
- * data directory if it was successfully downloaded.
- */
+// Function that downloads a file from the mirror URL and moves it into the
+// data directory if it was successfully downloaded.
 func downloadFile(verboseMode bool, filename string, localFilePath string,
-	downloadMirrorUrl string) (int, error) {
+	downloadMirrorURL string) (int, error) {
 
 	unknownStatus := -1
-	downloadUrl := downloadMirrorUrl + "/" + filename
+	downloadURL := downloadMirrorURL + "/" + filename
 
 	output, err := ioutil.TempFile(os.TempDir(), filename+"-")
 
 	// Skip downloading the file if our local copy is newer than the remote copy
 	if exists(localFilePath) {
-		newer, err := checkIfRemoteIsNewer(verboseMode, localFilePath, downloadUrl)
+		newer, err := checkIfRemoteIsNewer(verboseMode, localFilePath, downloadURL)
 
 		if err != nil {
 			return unknownStatus, err
@@ -456,10 +439,10 @@ func downloadFile(verboseMode bool, filename string, localFilePath string,
 
 	defer output.Close()
 
-	response, err := http.Get(downloadUrl)
+	response, err := http.Get(downloadURL)
 
 	if err != nil {
-		msg := fmt.Sprintf("Unable to retrieve file from: [%v]. {{err}}", downloadUrl)
+		msg := fmt.Sprintf("Unable to retrieve file from: [%v]. {{err}}", downloadURL)
 		return unknownStatus, errwrap.Wrapf(msg, err)
 	}
 
@@ -472,7 +455,7 @@ func downloadFile(verboseMode bool, filename string, localFilePath string,
 
 	if err != nil {
 		logger.Printf("Error parsing last-modified header [%v] for file: %v",
-			response.Header.Get("Last-Modified"), downloadUrl)
+			response.Header.Get("Last-Modified"), downloadURL)
 		lastModified = time.Now()
 	}
 
@@ -482,7 +465,7 @@ func downloadFile(verboseMode bool, filename string, localFilePath string,
 
 	if err != nil {
 		msg := fmt.Sprintf("Error copying data from URL [%v] to local file [%v]. {{err}}",
-			downloadUrl, localFilePath)
+			downloadURL, localFilePath)
 		return response.StatusCode, errwrap.Wrapf(msg, err)
 	}
 
@@ -491,16 +474,14 @@ func downloadFile(verboseMode bool, filename string, localFilePath string,
 	 * server's timestamps. */
 	os.Chtimes(localFilePath, lastModified, lastModified)
 
-	logger.Printf("Download complete: %v --> %v [%v bytes]", downloadUrl, localFilePath, n)
+	logger.Printf("Download complete: %v --> %v [%v bytes]", downloadURL, localFilePath, n)
 
 	return response.StatusCode, nil
 }
 
-/*
- * Function that checks to see if the remote file is newer than the locally stored
- * file.
- */
-func checkIfRemoteIsNewer(verboseMode bool, localFilePath string, downloadUrl string) (bool, error) {
+// Function that checks to see if the remote file is newer than the locally stored
+// file.
+func checkIfRemoteIsNewer(verboseMode bool, localFilePath string, downloadURL string) (bool, error) {
 	localFileStat, err := os.Stat(localFilePath)
 
 	if err != nil {
@@ -508,30 +489,30 @@ func checkIfRemoteIsNewer(verboseMode bool, localFilePath string, downloadUrl st
 	}
 
 	localModTime := localFileStat.ModTime()
-	response, err := http.Head(downloadUrl)
+	response, err := http.Head(downloadURL)
 
 	if err != nil {
-		msg := fmt.Sprintf("Unable to complete HEAD request: [%v]. {{err}}", downloadUrl)
+		msg := fmt.Sprintf("Unable to complete HEAD request: [%v]. {{err}}", downloadURL)
 		return true, errwrap.Wrapf(msg, err)
 	}
 
 	remoteModTime, err := http.ParseTime(response.Header.Get("Last-Modified"))
 
 	if verboseMode {
-		logger.Printf("Local file [%v] last-modified: %v", downloadUrl, localModTime)
-		logger.Printf("Remote file [%v] last-modified: %v", downloadUrl, remoteModTime)
+		logger.Printf("Local file [%v] last-modified: %v", downloadURL, localModTime)
+		logger.Printf("Remote file [%v] last-modified: %v", downloadURL, remoteModTime)
 	}
 
 	if err != nil {
 		msg := fmt.Sprintf("Error parsing last-modified header [%v] for file [%v]. {{err}}",
-			response.Header.Get("Last-Modified"), downloadUrl)
+			response.Header.Get("Last-Modified"), downloadURL)
 		return true, errwrap.Wrapf(msg, err)
 	}
 
 	if localModTime.After(remoteModTime) {
-		logger.Printf("Skipping download of [%v] because local copy is newer", downloadUrl)
+		logger.Printf("Skipping download of [%v] because local copy is newer", downloadURL)
 		return false, nil
-	} else {
-		return true, nil
 	}
+
+	return true, nil
 }
