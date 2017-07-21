@@ -1,4 +1,4 @@
-PACKAGE  = github.com/dekobon/clamav-mirror/sigupdate
+PACKAGE  = github.com/dekobon/clamav-mirror
 DATE    ?= $(shell date -u +%FT%T%z)
 VERSION ?= $(shell git describe --tags --always --dirty --match=v* 2> /dev/null || \
 			cat $(CURDIR)/.version 2> /dev/null || echo v0)
@@ -22,11 +22,11 @@ M = $(shell printf "\033[34;1m▶\033[0m")
 #export GOPATH:=$(GOPATH)
 
 .PHONY: all
-all: fmt lint vendor | $(BASE) sigupdate
+all: fmt lint vendor | $(BASE) sigupdate sigserver
 
 $(BASE): ; $(info $(M) setting GOPATH…)
 	@mkdir -p $(GOPATH)
-	@cp -r $(CURDIR)/src $(GOPATH)/
+	@ln -sf $(CURDIR)/src $(GOPATH)/src
 	@ln -sf $(CURDIR)/vendor $(GOPATH)/src/vendor
 
 # Tools
@@ -101,13 +101,21 @@ fmt: ; $(info $(M) running gofmt…) @ ## Run gofmt on all source files
 		$(GOFMT) -l -w $$d/*.go || ret=$$? ; \
 	 done ; exit $$ret
 
+sigserver:
+	$(info $(M) building sigserver…) @ ## Build sigupdate binary
+	$Q cd $(BASE) && $(GO) build \
+		-tags release \
+		-ldflags '-X main.githash=$(GITHASH) -X main.buildstamp=$(DATE)' \
+		-o $(CURDIR)/bin/sigserver \
+        $(GOPATH)/src/$(PACKAGE)/sigserver/*.go
+
 sigupdate:
-	$(info $(M) building sigupdate…) @ ## Build program binary
+	$(info $(M) building sigupdate…) @ ## Build sigserver binary
 	$Q cd $(BASE) && $(GO) build \
 		-tags release \
 		-ldflags '-X main.githash=$(GITHASH) -X main.buildstamp=$(DATE)' \
 		-o $(CURDIR)/bin/sigupdate \
-        $(GOPATH)/src/$(PACKAGE)/*.go
+        $(GOPATH)/src/$(PACKAGE)/sigupdate/*.go
 
 # Dependency management
 

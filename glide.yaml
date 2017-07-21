@@ -1,4 +1,4 @@
-package: github.com/dekobon/clamav-mirror/sigupdate
+package: github.com/dekobon/clamav-mirror
 homepage: https://github.com/dekobon/clamav-mirror
 license: MPLv2
 owners:

@@ -23,6 +23,10 @@ import (
 	"github.com/pborman/getopt"
 )
 
+import (
+	"github.com/dekobon/clamav-mirror/utils"
+)
+
 var githash = "unknown"
 var buildstamp = "unknown"
 
@@ -37,16 +41,16 @@ func init() {
 // Main entry point to the downloader application. This will allow you to run
 // the downloader as a stand-alone binary.
 func main() {
-	err := runSignatureUpdate(parseCliFlags())
+	err := RunSignatureUpdate(parseCliFlags())
 
 	if err != nil {
 		logFatal.Fatal(err)
 	}
 }
 
-// Functional entry point to the application. Use this method to invoke the
-// downloader from external code.
-func runSignatureUpdate(verboseMode bool, dataFilePath string, downloadMirrorURL string,
+// RunSignatureUpdate is the functional entry point to the application.
+// Use this method to invoke the downloader from external code.
+func RunSignatureUpdate(verboseMode bool, dataFilePath string, downloadMirrorURL string,
 	diffCountThreshold uint16) error {
 	logger.Println("Updating ClamAV signatures")
 
@@ -128,7 +132,7 @@ func parseCliFlags() (bool, string, string, uint16) {
 		os.Exit(0)
 	}
 
-	if !exists(*dataFilePart) {
+	if !utils.Exists(*dataFilePart) {
 		msg := fmt.Sprintf("Data file path doesn't exist or isn't accessible: %v",
 			*dataFilePart)
 		logFatal.Fatal(msg)
@@ -142,7 +146,7 @@ func parseCliFlags() (bool, string, string, uint16) {
 		logFatal.Fatal(msg)
 	}
 
-	if !isWritable(dataFileAbsPath) {
+	if !utils.IsWritable(dataFileAbsPath) {
 		msg := fmt.Sprintf("Data file path doesn't have write access for "+
 			"current user at path: %v", dataFileAbsPath)
 		logFatal.Fatal(msg)
@@ -218,7 +222,7 @@ func findSigtoolPath() (string, error) {
 	envPath := os.Getenv("PATH")
 	localPath := "." + separator + execName
 
-	if exists(localPath) {
+	if utils.Exists(localPath) {
 		execPath, err := filepath.Abs(localPath)
 
 		if err != nil {
@@ -232,7 +236,7 @@ func findSigtoolPath() (string, error) {
 	for _, pathElement := range strings.Split(envPath, envPathSeparator) {
 		execPath := pathElement + separator + execName
 
-		if exists(execPath) {
+		if utils.Exists(execPath) {
 			return execPath, nil
 		}
 	}
@@ -255,7 +259,7 @@ func updateFile(verboseMode bool, dataFilePath string, sigtoolPath string,
 	localFilePath := dataFilePath + separator + filename
 
 	// Download the signatures for the first time if they don't exist
-	if !exists(localFilePath) {
+	if !utils.Exists(localFilePath) {
 		logger.Printf("Local copy of [%v] does not exist - initiating download.",
 			localFilePath)
 		_, err := downloadFile(verboseMode, filename, localFilePath, downloadMirrorURL)
@@ -297,7 +301,7 @@ func updateFile(verboseMode bool, dataFilePath string, sigtoolPath string,
 		localDiffFilePath := dataFilePath + separator + diffFilename
 
 		// Don't bother downloading a diff if it already exists
-		if exists(localDiffFilePath) {
+		if utils.Exists(localDiffFilePath) {
 			if verboseMode {
 				logger.Printf("Local copy of [%v] already exists, not downloading",
 					localDiffFilePath)
@@ -416,7 +420,7 @@ func downloadFile(verboseMode bool, filename string, localFilePath string,
 	output, err := ioutil.TempFile(os.TempDir(), filename+"-")
 
 	// Skip downloading the file if our local copy is newer than the remote copy
-	if exists(localFilePath) {
+	if utils.Exists(localFilePath) {
 		newer, err := checkIfRemoteIsNewer(verboseMode, localFilePath, downloadURL)
 
 		if err != nil {
