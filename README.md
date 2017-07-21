@@ -47,6 +47,12 @@ available on the mirrors to provide updates. In particular, this happens if you 
 with definitions that come directly from a package manager. This value sets the number
 of versions to download diffs for until we update the base signature data file.
 
+### sigserver
+
+The sigserver component is a stand-alone HTTP server that serves ClamAV signatures. 
+Signatures will be updated periodically  using the sigupdate component. The update
+interval will be configurable.
+
 ## License
 
 This project is licensed under the MPLv2. Please see the LICENSE file for more details.
