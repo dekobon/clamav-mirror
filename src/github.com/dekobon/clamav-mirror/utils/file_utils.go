@@ -13,7 +13,7 @@ func Exists(filePath string) (exists bool) {
 		exists = false
 	}
 
-	return
+	return exists
 }
 
 // IsWritable function that determines if a given directory

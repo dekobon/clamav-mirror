@@ -228,11 +228,10 @@ func findSigtoolPath() (string, error) {
 		execPath, err := filepath.Abs(localPath)
 
 		if err != nil {
-			msg := fmt.Sprintf("Error parsing absolute path for [%v]. {{err}}", localPath)
-			return "", errwrap.Wrapf(msg, err)
+			logger.Printf("Error parsing absolute path for [%v]", localPath)
+		} else {
+			return execPath, nil
 		}
-
-		return execPath, nil
 	}
 
 	for _, pathElement := range strings.Split(envPath, envPathSeparator) {
