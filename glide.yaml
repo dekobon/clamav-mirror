@@ -1,0 +1,12 @@
+package: github.com/dekobon/clamav-mirror/sigupdate
+homepage: https://github.com/dekobon/clamav-mirror
+license: MPLv2
+owners:
+ - name: Elijah Zupancic
+   email: elijah@zupancic.name
+   homepage: http://elijah.zupancic.name
+import:
+- package: github.com/hashicorp/errwrap
+- package: github.com/pborman/getopt
+- package: golang.org/x/sys/unix
+importTest:

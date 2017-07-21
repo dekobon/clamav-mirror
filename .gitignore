@@ -8,6 +8,14 @@
 *.so
 *.dylib
 
+bin/
+
+### Glide Go Vendor Directory ###
+vendor/
+
+### Build GOPATH ###
+.gopath~/
+
 # Test binary, build with `go test -c`
 *.test
 
