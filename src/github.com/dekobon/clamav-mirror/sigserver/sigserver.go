@@ -18,6 +18,7 @@ import (
 
 var githash = "unknown"
 var buildstamp = "unknown"
+var appversion = "unknown"
 
 var logger *log.Logger
 var logFatal *log.Logger

@@ -1,6 +1,3 @@
-
-# Created by https://www.gitignore.io/api/go,intellij
-
 ### Go ###
 # Binaries for programs and plugins
 *.exe
@@ -9,6 +6,9 @@
 *.dylib
 
 /bin/
+
+### Current Version Resource File ###
+/.version
 
 ### Glide Go Vendor Directory ###
 vendor/
@@ -86,5 +86,3 @@ modules.xml
 
 # Sonarlint plugin
 .idea/sonarlint
-
-# End of https://www.gitignore.io/api/go,intellij

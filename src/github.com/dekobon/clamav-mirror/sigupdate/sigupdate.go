@@ -29,6 +29,7 @@ import (
 
 var githash = "unknown"
 var buildstamp = "unknown"
+var appversion = "unknown"
 
 var logger *log.Logger
 var logFatal *log.Logger
@@ -125,9 +126,10 @@ func parseCliFlags() (bool, string, string, uint16) {
 	if *versionPart {
 		fmt.Println("sigupdate")
 		fmt.Println("")
-		fmt.Printf("License        : MPLv2\n")
+		fmt.Printf("Version        : %v\n", appversion)
 		fmt.Printf("Git Commit Hash: %v\n", githash)
 		fmt.Printf("UTC Build Time : %v\n", buildstamp)
+		fmt.Printf("License        : MPLv2\n")
 
 		os.Exit(0)
 	}

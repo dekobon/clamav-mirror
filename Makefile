@@ -1,14 +1,14 @@
-PACKAGE  = github.com/dekobon/clamav-mirror
-DATE    ?= $(shell date -u +%FT%T%z)
-VERSION ?= $(shell git describe --tags --always --dirty --match=v* 2> /dev/null || \
-			cat $(CURDIR)/.version 2> /dev/null || echo v0)
-GITHASH ?= $(shell git rev-parse HEAD)
+PACKAGE_ROOT = github.com/dekobon
+PACKAGE      = $(PACKAGE_ROOT)/clamav-mirror
+DATE        ?= $(shell date -u +%FT%T%z)
+VERSION     ?= $(shell cat $(CURDIR)/.version 2> /dev/null || echo unknown)
+GITHASH     ?= $(shell git rev-parse HEAD)
 
-GOPATH   = $(CURDIR)/.gopath~
-BIN      = $(GOPATH)/bin
-BASE     = $(GOPATH)/src/$(PACKAGE)
-PKGS     = $(or $(PKG),$(shell cd $(BASE) && env GOPATH=$(GOPATH) $(GO) list ./... | grep -v "^$(PACKAGE)/vendor/"))
-TESTPKGS = $(shell env GOPATH=$(GOPATH) $(GO) list -f '{{ if or .TestGoFiles .XTestGoFiles }}{{ .ImportPath }}{{ end }}' $(PKGS))
+GOPATH       = $(CURDIR)/.gopath~
+BIN          = $(GOPATH)/bin
+BASE         = $(GOPATH)/src/$(PACKAGE)
+PKGS         = $(or $(PKG),$(shell cd $(BASE) && env GOPATH=$(GOPATH) $(GO) list ./... | grep -v "^$(PACKAGE)/vendor/"))
+TESTPKGS     = $(shell env GOPATH=$(GOPATH) $(GO) list -f '{{ if or .TestGoFiles .XTestGoFiles }}{{ .ImportPath }}{{ end }}' $(PKGS))
 
 GO      = go
 GODOC   = godoc
@@ -19,14 +19,14 @@ V = 0
 Q = $(if $(filter 1,$V),,@)
 M = $(shell printf "\033[34;1m▶\033[0m")
 
-#export GOPATH:=$(GOPATH)
+export GOPATH:=$(GOPATH)
 
 .PHONY: all
 all: fmt lint vendor | $(BASE) sigupdate sigserver
 
 $(BASE): ; $(info $(M) setting GOPATH…)
-	@mkdir -p $(GOPATH)
-	@ln -sf $(CURDIR)/src $(GOPATH)/src
+	@mkdir -p $(GOPATH)/src/github.com
+	@ln -sf $(CURDIR)/src/$(PACKAGE_ROOT) $(GOPATH)/src/$(PACKAGE_ROOT)
 	@ln -sf $(CURDIR)/vendor $(GOPATH)/src/vendor
 
 # Tools
@@ -105,7 +105,7 @@ sigserver:
 	$(info $(M) building sigserver…) @ ## Build sigupdate binary
 	$Q cd $(BASE) && $(GO) build \
 		-tags release \
-		-ldflags '-X main.githash=$(GITHASH) -X main.buildstamp=$(DATE)' \
+		-ldflags '-X main.githash=$(GITHASH) -X main.buildstamp=$(DATE) -X main.appversion=$(VERSION)' \
 		-o $(CURDIR)/bin/sigserver \
         $(GOPATH)/src/$(PACKAGE)/sigserver/*.go
 
@@ -113,7 +113,7 @@ sigupdate:
 	$(info $(M) building sigupdate…) @ ## Build sigserver binary
 	$Q cd $(BASE) && $(GO) build \
 		-tags release \
-		-ldflags '-X main.githash=$(GITHASH) -X main.buildstamp=$(DATE)' \
+		-ldflags '-X main.githash=$(GITHASH) -X main.buildstamp=$(DATE) -X main.appversion=$(VERSION)' \
 		-o $(CURDIR)/bin/sigupdate \
         $(GOPATH)/src/$(PACKAGE)/sigupdate/*.go
 
