@@ -1,4 +1,4 @@
-package main
+package sigupdate
 
 import (
 	"bufio"
@@ -20,50 +20,41 @@ import (
 
 import (
 	"github.com/hashicorp/errwrap"
-	"github.com/pborman/getopt"
 )
 
 import (
 	"github.com/dekobon/clamav-mirror/utils"
 )
 
-var githash = "unknown"
-var buildstamp = "unknown"
-var appversion = "unknown"
-
 var logger *log.Logger
 var logFatal *log.Logger
+var sigtoolPath string
+var verboseMode bool
 
 func init() {
 	logger = log.New(os.Stdout, "", log.LstdFlags)
 	logFatal = log.New(os.Stderr, "", log.LstdFlags|log.Lshortfile)
 }
 
-// Main entry point to the downloader application. This will allow you to run
-// the downloader as a stand-alone binary.
-func main() {
-	err := RunSignatureUpdate(parseCliFlags())
-
-	if err != nil {
-		logFatal.Fatal(err)
-	}
-}
-
 // RunSignatureUpdate is the functional entry point to the application.
 // Use this method to invoke the downloader from external code.
-func RunSignatureUpdate(verboseMode bool, dataFilePath string, downloadMirrorURL string,
+func RunSignatureUpdate(verboseModeEnabled bool, dataFilePath string, downloadMirrorURL string,
 	diffCountThreshold uint16) error {
 	logger.Println("Updating ClamAV signatures")
+
+	verboseMode = verboseModeEnabled
 
 	if verboseMode {
 		logger.Printf("Data file directory: %v", dataFilePath)
 	}
 
-	sigtoolPath, err := findSigtoolPath()
+	sigtoolParsedPath, err := findSigtoolPath()
 
 	if err != nil {
 		return err
 	}
+
+	sigtoolPath = sigtoolParsedPath
 
 	if verboseMode {
 		logger.Printf("ClamAV executable sigtool found at path: %v", sigtoolPath)
@@ -97,7 +88,7 @@ func RunSignatureUpdate(verboseMode bool, dataFilePath string, downloadMirrorURL
 	}
 
 	for _, signature := range signaturesToUpdate {
-		err = updateFile(verboseMode, dataFilePath, sigtoolPath, signature,
+		err = updateFile(dataFilePath, signature,
 			downloadMirrorURL, diffCountThreshold)
 
 		if err != nil {
@@ -106,55 +97,6 @@ func RunSignatureUpdate(verboseMode bool, dataFilePath string, downloadMirrorURL
 	}
 
 	return nil
-}
-
-// Function that parses the CLI options passed to the application.
-func parseCliFlags() (bool, string, string, uint16) {
-	verbosePart := getopt.BoolLong("verbose", 'v',
-		"Enable verbose mode with additional debugging information")
-	versionPart := getopt.BoolLong("version", 'V',
-		"Display the version and exit")
-	dataFilePart := getopt.StringLong("data-file-path", 'd',
-		"/var/clamav/data", "Path to ClamAV data files")
-	diffThresholdPart := getopt.Uint16Long("diff-count-threshold", 't',
-		100, "Number of diffs to download until we redownload the signature files")
-	downloadMirrorPart := getopt.StringLong("download-mirror-url", 'm',
-		"http://database.clamav.net", "URL to download signature updates from")
-
-	getopt.Parse()
-
-	if *versionPart {
-		fmt.Println("sigupdate")
-		fmt.Println("")
-		fmt.Printf("Version        : %v\n", appversion)
-		fmt.Printf("Git Commit Hash: %v\n", githash)
-		fmt.Printf("UTC Build Time : %v\n", buildstamp)
-		fmt.Printf("License        : MPLv2\n")
-
-		os.Exit(0)
-	}
-
-	if !utils.Exists(*dataFilePart) {
-		msg := fmt.Sprintf("Data file path doesn't exist or isn't accessible: %v",
-			*dataFilePart)
-		logFatal.Fatal(msg)
-	}
-
-	dataFileAbsPath, err := filepath.Abs(*dataFilePart)
-
-	if err != nil {
-		msg := fmt.Sprintf("Unable to parse absolute path of data file path: %v",
-			*dataFilePart)
-		logFatal.Fatal(msg)
-	}
-
-	if !utils.IsWritable(dataFileAbsPath) {
-		msg := fmt.Sprintf("Data file path doesn't have write access for "+
-			"current user at path: %v", dataFileAbsPath)
-		logFatal.Fatal(msg)
-	}
-
-	return *verbosePart, dataFileAbsPath, *downloadMirrorPart, *diffThresholdPart
 }
 
 // Function that gets retrieves the value of the DNS TXT record published by
@@ -250,7 +192,7 @@ func findSigtoolPath() (string, error) {
 
 // Function that updates the data files for a given signature by either
 // downloading the datafile or downloading diffs.
-func updateFile(verboseMode bool, dataFilePath string, sigtoolPath string,
+func updateFile(dataFilePath string,
 	signature Signature, downloadMirrorURL string, diffCountThreshold uint16) error {
 	filePrefix := signature.Name
 	currentVersion := signature.Version
@@ -259,88 +201,83 @@ func updateFile(verboseMode bool, dataFilePath string, sigtoolPath string,
 	filename := filePrefix + ".cvd"
 	localFilePath := dataFilePath + separator + filename
 
-	// Download the signatures for the first time if they don't exist
-	if !utils.Exists(localFilePath) {
+	var downloadNewBaseSignature bool
+
+	if utils.Exists(localFilePath) {
+		if verboseMode {
+			logger.Printf("Local copy of [%v] already exists - "+
+				"initiating diff based update", localFilePath)
+		}
+
+		downloadNewBaseSignature = false
+	} else {
 		logger.Printf("Local copy of [%v] does not exist - initiating download.",
 			localFilePath)
-		_, err := downloadFile(verboseMode, filename, localFilePath, downloadMirrorURL)
-
-		if err != nil {
-			return err
-		}
-
-		return nil
+		// Download the signatures for the first time if they don't exist
+		downloadNewBaseSignature = true
 	}
 
-	if verboseMode {
-		logger.Printf("Local copy of [%v] already exists - "+
-			"initiating diff based update", localFilePath)
-	}
+	oldVersion, err := findLocalVersion(localFilePath)
 
-	oldVersion, err := findLocalVersion(localFilePath, sigtoolPath)
-
-	if err != nil || oldVersion < 0 {
+	if !downloadNewBaseSignature && (err != nil || oldVersion < 0) {
 		logger.Printf("There was a problem with the version [%v] of file [%v]. "+
 			"The file will be downloaded again. Original Error: %v", oldVersion, localFilePath, err)
-		_, err := downloadFile(verboseMode, filename, localFilePath, downloadMirrorURL)
-
-		if err != nil {
-			return err
+		downloadNewBaseSignature = true
+	} else {
+		if verboseMode {
+			logger.Printf("%v current version: %v", filename, oldVersion)
 		}
-
-		return nil
 	}
 
-	if verboseMode {
-		logger.Printf("%v current version: %v", filename, oldVersion)
-	}
+	if !downloadNewBaseSignature {
+		/* Attempt to download a diff for each version until we reach the current
+		 * version. */
+		for count := oldVersion + 1; count <= currentVersion; count++ {
+			diffFilename := filePrefix + "-" + strconv.FormatInt(count, 10) + ".cdiff"
+			localDiffFilePath := dataFilePath + separator + diffFilename
 
-	/* Attempt to download a diff for each version until we reach the current
-	 * version. */
-	for count := oldVersion + 1; count <= currentVersion; count++ {
-		diffFilename := filePrefix + "-" + strconv.FormatInt(count, 10) + ".cdiff"
-		localDiffFilePath := dataFilePath + separator + diffFilename
-
-		// Don't bother downloading a diff if it already exists
-		if utils.Exists(localDiffFilePath) {
-			if verboseMode {
-				logger.Printf("Local copy of [%v] already exists, not downloading",
-					localDiffFilePath)
+			// Don't bother downloading a diff if it already exists
+			if utils.Exists(localDiffFilePath) {
+				if verboseMode {
+					logger.Printf("Local copy of [%v] already exists, not downloading",
+						localDiffFilePath)
+				}
+				continue
 			}
-			continue
-		}
 
-		_, err := downloadFile(verboseMode, diffFilename, localDiffFilePath, downloadMirrorURL)
+			_, err := downloadFile(diffFilename, localDiffFilePath, downloadMirrorURL)
 
-		/* Give up attempting to download incremental diffs if we can't find a
-		 * diff file corresponding to the version needed. We just go download
-		 * the main signature file again if we hit this case. */
-		if err != nil {
-			logger.Printf("There was a problem downloading diff [%v] of file [%v]. "+
-				"The file original file [%v] will be downloaded again. Original Error: %v",
-				count, diffFilename, filename, err)
-
-			_, err := downloadFile(verboseMode, filename, localFilePath, downloadMirrorURL)
-
+			/* Give up attempting to download incremental diffs if we can't find a
+			 * diff file corresponding to the version needed. We just go download
+			 * the main signature file again if we hit this case. */
 			if err != nil {
-				return err
+				logger.Printf("There was a problem downloading diff [%v] of file [%v]. "+
+					"The file original file [%v] will be downloaded again. Original Error: %v",
+					count, diffFilename, filename, err)
+				downloadNewBaseSignature = true
+				break
 			}
-			break
 		}
 	}
 
 	/* If we have too many diffs, we go ahead and download the whole signatures
 	 * after we have the diffs so that our base signature files stay relatively
 	 * current. */
-	if currentVersion-oldVersion > int64(diffCountThreshold) {
+	if !downloadNewBaseSignature && (currentVersion-oldVersion > int64(diffCountThreshold)) {
 		logger.Printf("Original signature has deviated beyond threshold from diffs, "+
 			"so we are downloading the file [%v] again", filename)
 
-		_, err := downloadFile(verboseMode, filename, localFilePath, downloadMirrorURL)
+		downloadNewBaseSignature = true
+	}
+
+	if downloadNewBaseSignature {
+		_, err := downloadFile(filename, localFilePath, downloadMirrorURL)
 
 		if err != nil {
 			return err
 		}
+
+		return nil
 	}
 
 	return nil
@@ -348,7 +285,7 @@ func updateFile(verboseMode bool, dataFilePath string, sigtoolPath string,
 
 // Function that uses the ClamAV sigtool executable to extract the version number
 // from a signature definition file.
-func findLocalVersion(localFilePath string, sigtoolPath string) (int64, error) {
+func findLocalVersion(localFilePath string) (int64, error) {
 	versionDelim := "Version:"
 	errVersion := int64(-1)
 
@@ -412,7 +349,7 @@ func findLocalVersion(localFilePath string, sigtoolPath string) (int64, error) {
 
 // Function that downloads a file from the mirror URL and moves it into the
 // data directory if it was successfully downloaded.
-func downloadFile(verboseMode bool, filename string, localFilePath string,
+func downloadFile(filename string, localFilePath string,
 	downloadMirrorURL string) (int, error) {
 
 	unknownStatus := -1
@@ -420,15 +357,19 @@ func downloadFile(verboseMode bool, filename string, localFilePath string,
 
 	output, err := ioutil.TempFile(os.TempDir(), filename+"-")
 
-	// Skip downloading the file if our local copy is newer than the remote copy
+	/* For all non-cvd files, skip downloading the file if our local copy is
+	 * newer than the remote copy. For .cvd files, the only authoritative way
+	 * to know what is newer is to use sigtool. */
 	if utils.Exists(localFilePath) {
-		newer, err := checkIfRemoteIsNewer(verboseMode, localFilePath, downloadURL)
+		newer, err := checkIfRemoteIsNewer(localFilePath, downloadURL)
 
 		if err != nil {
 			return unknownStatus, err
 		}
 
-		if newer {
+		if !newer {
+			logger.Printf("Not downloading [%v] because remote copy is "+
+				"older than local copy", filename)
 			return unknownStatus, nil
 		}
 	}
@@ -474,19 +415,29 @@ func downloadFile(verboseMode bool, filename string, localFilePath string,
 		return response.StatusCode, errwrap.Wrapf(msg, err)
 	}
 
-	os.Rename(output.Name(), localFilePath)
-	/* Change the last modified time so that we have a record that corresponds to the
-	 * server's timestamps. */
-	os.Chtimes(localFilePath, lastModified, lastModified)
+	if isItOkToOverwrite(filename, localFilePath, output.Name()) {
+		/* Change the last modified time so that we have a record that corresponds to the
+		 * server's timestamps. */
+		os.Chtimes(output.Name(), lastModified, lastModified)
+		os.Rename(output.Name(), localFilePath)
 
-	logger.Printf("Download complete: %v --> %v [%v bytes]", downloadURL, localFilePath, n)
+		logger.Printf("Download complete: %v --> %v [%v bytes]", downloadURL, localFilePath, n)
+	} else {
+		logger.Printf("Downloaded file an older signature version than the current file")
+
+		err := os.Remove(output.Name())
+
+		if err != nil {
+			logger.Printf("Unable to delete temporary file: %v", output.Name())
+		}
+	}
 
 	return response.StatusCode, nil
 }
 
 // Function that checks to see if the remote file is newer than the locally stored
 // file.
-func checkIfRemoteIsNewer(verboseMode bool, localFilePath string, downloadURL string) (bool, error) {
+func checkIfRemoteIsNewer(localFilePath string, downloadURL string) (bool, error) {
 	localFileStat, err := os.Stat(localFilePath)
 
 	if err != nil {
@@ -520,4 +471,35 @@ func checkIfRemoteIsNewer(verboseMode bool, localFilePath string, downloadURL st
 	}
 
 	return true, nil
+}
+
+// Function that checks to see if we can overwrite a file with a newly downloaded file
+func isItOkToOverwrite(filename string, originalFilePath string, newFileTempPath string) bool {
+	if !strings.HasSuffix(filename, ".cvd") {
+		return true
+	}
+
+	oldVersion, err := findLocalVersion(originalFilePath)
+
+	// If there is a problem with the original file, we just overwrite it
+	if err != nil {
+		return true
+	}
+
+	newVersion, err := findLocalVersion(newFileTempPath)
+
+	// If there is a problem with the new file, we don't overwrite the original
+	if err != nil {
+		return false
+	}
+
+	isNewer := newVersion > oldVersion
+
+	if verboseMode {
+		logger.Printf("Current file [%v] version [%v]. New file version [%v]. "+
+			"Will overwrite: %v",
+			filename, oldVersion, newVersion, isNewer)
+	}
+
+	return isNewer
 }

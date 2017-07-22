@@ -107,7 +107,7 @@ sigserver:
 		-tags release \
 		-ldflags '-X main.githash=$(GITHASH) -X main.buildstamp=$(DATE) -X main.appversion=$(VERSION)' \
 		-o $(CURDIR)/bin/sigserver \
-        $(GOPATH)/src/$(PACKAGE)/sigserver/*.go
+        $(GOPATH)/src/$(PACKAGE)/sigserver/app/*.go
 
 sigupdate:
 	$(info $(M) building sigupdate…) @ ## Build sigserver binary
@@ -115,7 +115,7 @@ sigupdate:
 		-tags release \
 		-ldflags '-X main.githash=$(GITHASH) -X main.buildstamp=$(DATE) -X main.appversion=$(VERSION)' \
 		-o $(CURDIR)/bin/sigupdate \
-        $(GOPATH)/src/$(PACKAGE)/sigupdate/*.go
+        $(GOPATH)/src/$(PACKAGE)/sigupdate/app/*.go
 
 # Dependency management
 

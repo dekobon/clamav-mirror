@@ -8,5 +8,6 @@ owners:
 import:
 - package: github.com/hashicorp/errwrap
 - package: github.com/pborman/getopt
+- package: github.com/robfig/cron
 - package: golang.org/x/sys/unix
 importTest:

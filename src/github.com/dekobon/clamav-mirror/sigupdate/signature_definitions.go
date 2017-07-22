@@ -1,4 +1,4 @@
-package main
+package sigupdate
 
 // SignatureVersions is for storing the parsed results of the signature versions
 // published in ClamAV's TXT record.
