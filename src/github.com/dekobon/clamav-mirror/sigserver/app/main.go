@@ -46,7 +46,7 @@ func parseCliFlags() (bool, string, string, uint16, uint16, uint16) {
 	listenPortPart := getopt.Uint16Long("port", 'p',
 		8080, "Port to serve signatures on")
 	updateHourlyIntervalPart := getopt.Uint16Long("houry-update-interval", 'h',
-		2, "Number of hours to wait between signature updates")
+		4, "Number of hours to wait between signature updates")
 
 	getopt.Parse()
 
@@ -56,7 +56,7 @@ func parseCliFlags() (bool, string, string, uint16, uint16, uint16) {
 		fmt.Printf("Version        : %v\n", appversion)
 		fmt.Printf("Git Commit Hash: %v\n", githash)
 		fmt.Printf("UTC Build Time : %v\n", buildstamp)
-		fmt.Printf("License        : MPLv2\n")
+		fmt.Print("License        : MPLv2\n")
 
 		os.Exit(0)
 	}

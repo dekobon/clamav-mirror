@@ -51,7 +51,7 @@ func parseCliFlags() (bool, string, string, uint16) {
 		fmt.Printf("Version        : %v\n", appversion)
 		fmt.Printf("Git Commit Hash: %v\n", githash)
 		fmt.Printf("UTC Build Time : %v\n", buildstamp)
-		fmt.Printf("License        : MPLv2\n")
+		fmt.Print("License        : MPLv2\n")
 
 		os.Exit(0)
 	}
