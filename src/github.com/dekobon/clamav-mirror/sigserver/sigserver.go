@@ -143,6 +143,8 @@ func handler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	localModTime := stat.ModTime().UTC()
+
 	w.Header().Set("Last-Modified", stat.ModTime().UTC().Format(http.TimeFormat))
 	w.Header().Set("Content-Type", "application/octet-stream")
 
@@ -161,10 +163,12 @@ func handler(w http.ResponseWriter, r *http.Request) {
 			logError.Printf("Couldn't parse time value [%v]. %v", r.Header.Get("If-Modified-Since"), err)
 		}
 
-		logger.Printf("Local modification time: %v. Remote modification time: %v",
-			stat.ModTime(), modifiedSince)
+		modifiedSince = modifiedSince.UTC()
 
-		if modifiedSince.After(stat.ModTime()) || modifiedSince.Equal(stat.ModTime()) {
+		logger.Printf("Local modification time: %v. Remote modification time: %v",
+			localModTime, modifiedSince)
+
+		if modifiedSince.After(localModTime) || modifiedSince.Equal(localModTime.UTC()) {
 			if verboseMode {
 				logger.Printf("[%v] {%v} %v --> %v (304 Not-Modified)", r.Method, r.RemoteAddr, r.URL, dataFilePath)
 			}
