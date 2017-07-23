@@ -19,7 +19,7 @@ import (
 // Function that downloads a file from the mirror URL and moves it into the
 // data directory if it was successfully downloaded.
 func downloadFile(filename string, localFilePath string,
-	downloadMirrorURL string) (int, error) {
+	downloadMirrorURL string, oldSignatureInfo SignatureInfo) (int, error) {
 
 	unknownStatus := -1
 	downloadURL := downloadMirrorURL + "/" + filename
@@ -46,10 +46,13 @@ func downloadFile(filename string, localFilePath string,
 
 	request.Header.Add("User-Agent", "github.com/dekobon/clamav-mirror")
 
+	/* For .cvd files, the only authoritative way know what is newer is
+	 * to use sigtool. */
+	if oldSignatureInfo != (SignatureInfo{}) {
+		request.Header.Add("If-Modified-Since", oldSignatureInfo.BuildTime.Format(http.TimeFormat))
 	/* For all non-cvd files, skip downloading the file if our local copy is
-	 * newer than the remote copy. For .cvd files, the only authoritative way
-	 * to know what is newer is to use sigtool. */
-	if utils.Exists(localFilePath) {
+	 * newer than the remote copy. */
+	} else if utils.Exists(localFilePath) {
 		stat, err := os.Stat(localFilePath)
 
 		if err == nil {
@@ -96,7 +99,7 @@ func downloadFile(filename string, localFilePath string,
 		return response.StatusCode, errwrap.Wrapf(msg, err)
 	}
 
-	if isItOkToOverwrite(filename, localFilePath, output.Name()) {
+	if isItOkToOverwrite(filename, localFilePath, output.Name(), oldSignatureInfo) {
 		/* Change the last modified time so that we have a record that corresponds to the
 		 * server's timestamps. */
 		os.Chtimes(output.Name(), lastModified, lastModified)
@@ -117,31 +120,26 @@ func downloadFile(filename string, localFilePath string,
 }
 
 // Function that checks to see if we can overwrite a file with a newly downloaded file
-func isItOkToOverwrite(filename string, originalFilePath string, newFileTempPath string) bool {
-	if !strings.HasSuffix(filename, ".cvd") {
+func isItOkToOverwrite(filename string, originalFilePath string, newFileTempPath string,
+	oldSignatureInfo SignatureInfo) bool {
+
+	if !strings.HasSuffix(filename, ".cvd") || oldSignatureInfo == (SignatureInfo{}){
 		return true
 	}
 
-	oldVersion, err := findLocalVersion(originalFilePath)
-
-	// If there is a problem with the original file, we just overwrite it
-	if err != nil {
-		return true
-	}
-
-	newVersion, err := findLocalVersion(newFileTempPath)
+	newSignatureInfo, err := readSignatureInfo(newFileTempPath)
 
 	// If there is a problem with the new file, we don't overwrite the original
 	if err != nil {
 		return false
 	}
 
-	isNewer := newVersion > oldVersion
+	isNewer := newSignatureInfo.Version > oldSignatureInfo.Version
 
 	if verboseMode {
 		logger.Printf("Current file [%v] version [%v]. New file version [%v]. "+
 			"Will overwrite: %v",
-			filename, oldVersion, newVersion, isNewer)
+			filename, newSignatureInfo.Version, newSignatureInfo, isNewer)
 	}
 
 	return isNewer

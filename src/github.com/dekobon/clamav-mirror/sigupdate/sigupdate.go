@@ -1,14 +1,11 @@
 package sigupdate
 
 import (
-	"bufio"
 	"errors"
 	"fmt"
 	"log"
-	"math"
 	"net"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -213,17 +210,21 @@ func updateFile(dataFilePath string,
 		downloadNewBaseSignature = true
 	}
 
-	oldVersion, err := findLocalVersion(localFilePath)
+	signatureInfo, err := readSignatureInfo(localFilePath)
 
-	if !downloadNewBaseSignature && (err != nil || oldVersion < 0) {
-		logger.Printf("There was a problem with the version [%v] of file [%v]. "+
-			"The file will be downloaded again. Original Error: %v", oldVersion, localFilePath, err)
+	if !downloadNewBaseSignature && err != nil {
+		logger.Printf("There was a problem with extracting the metadata from the signature file [%v]. "+
+			"The file will be downloaded again. Original Error: %v", localFilePath, err)
 		downloadNewBaseSignature = true
 	} else {
 		if verboseMode {
-			logger.Printf("%v current version: %v", filename, oldVersion)
+			logger.Printf("%v metadata: [File=%v,BuildTime=%v,Version=%v,MD5=%v]",
+				filename, signatureInfo.File, signatureInfo.BuildTime, signatureInfo.Version,
+				signatureInfo.MD5)
 		}
 	}
+
+	oldVersion := signatureInfo.Version
 
 	if !downloadNewBaseSignature {
 		/* Attempt to download a diff for each version until we reach the current
@@ -241,7 +242,8 @@ func updateFile(dataFilePath string,
 				continue
 			}
 
-			_, err := downloadFile(diffFilename, localDiffFilePath, downloadMirrorURL)
+			_, err := downloadFile(diffFilename, localDiffFilePath, downloadMirrorURL,
+				SignatureInfo{})
 
 			/* Give up attempting to download incremental diffs if we can't find a
 			 * diff file corresponding to the version needed. We just go download
@@ -268,7 +270,8 @@ func updateFile(dataFilePath string,
 	}
 
 	if downloadNewBaseSignature {
-		_, err := downloadFile(filename, localFilePath, downloadMirrorURL)
+		_, err := downloadFile(filename, localFilePath, downloadMirrorURL,
+			signatureInfo)
 
 		if err != nil {
 			return err
@@ -278,68 +281,4 @@ func updateFile(dataFilePath string,
 	}
 
 	return nil
-}
-
-// Function that uses the ClamAV sigtool executable to extract the version number
-// from a signature definition file.
-func findLocalVersion(localFilePath string) (int64, error) {
-	versionDelim := "Version:"
-	errVersion := int64(-1)
-
-	cmd := exec.Command(sigtoolPath, "-i", localFilePath)
-	stdout, err := cmd.StdoutPipe()
-
-	defer stdout.Close()
-
-	if err != nil {
-		return errVersion, errwrap.Wrapf("Error instantiating sigtool command. {{err}}", err)
-	}
-
-	if err := cmd.Start(); err != nil {
-		return errVersion, errwrap.Wrapf("Error running sigtool. {{err}}", err)
-	}
-
-	scanner := bufio.NewScanner(stdout)
-	var version int64 = math.MinInt64
-	validated := false
-
-	for scanner.Scan() {
-		line := scanner.Text()
-
-		if strings.HasPrefix(line, versionDelim) {
-			s := strings.SplitAfter(line, versionDelim+" ")
-			versionString := strings.TrimSpace(s[1])
-			parsedVersion, err := strconv.ParseInt(versionString, 10, 64)
-
-			if err != nil {
-				msg := fmt.Sprintf("Error converting [%v] to 64-bit integer. {{err}}",
-					versionString)
-				return errVersion, errwrap.Wrapf(msg, err)
-			}
-
-			version = parsedVersion
-		}
-
-		if strings.HasPrefix(line, "Verification OK") {
-			validated = true
-		}
-	}
-
-	if !validated {
-		return errVersion, errors.New("The file was not reported as validated")
-	}
-
-	if version == math.MinInt64 {
-		return errVersion, errors.New("No version information was available for file")
-	}
-
-	if err := scanner.Err(); err != nil {
-		return errVersion, errwrap.Wrapf("Error parsing sigtool STDOUT", err)
-	}
-
-	if err := cmd.Wait(); err != nil {
-		return errVersion, errwrap.Wrapf("Error waiting for sigtool STDOUT to flush", err)
-	}
-
-	return version, nil
 }

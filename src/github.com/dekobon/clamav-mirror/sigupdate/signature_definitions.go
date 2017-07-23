@@ -1,5 +1,9 @@
 package sigupdate
 
+import (
+	"time"
+)
+
 // SignatureVersions is for storing the parsed results of the signature versions
 // published in ClamAV's TXT record.
 type SignatureVersions struct {
@@ -13,4 +17,12 @@ type SignatureVersions struct {
 type Signature struct {
 	Name    string
 	Version int64
+}
+
+// SignatureInfo is for storing a Signature's metadata
+type SignatureInfo struct {
+	File string
+	BuildTime time.Time
+	Version int64
+	MD5 string
 }
