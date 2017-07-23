@@ -74,7 +74,7 @@ func runServer(port uint16) error {
 func scheduleUpdates(verboseMode bool, dataFilePath string, downloadMirrorURL string,
 	diffCountThreshold uint16, refreshHourInterval uint16) error {
 
-	cronSchedule := fmt.Sprintf("0 */%v * * *", refreshHourInterval)
+	cronSchedule := fmt.Sprintf("@every %dh", refreshHourInterval)
 
 	run := func() {
 		err := sigupdate.RunSignatureUpdate(verboseMode, dataFilePath,
