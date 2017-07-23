@@ -16,9 +16,9 @@ import (
 
 import (
 	"github.com/dekobon/clamav-mirror/sigupdate"
-	"path/filepath"
 	"github.com/dekobon/clamav-mirror/utils"
 	"io"
+	"path/filepath"
 )
 
 var githash = "unknown"
@@ -62,7 +62,7 @@ func RunUpdaterAndServer(verboseMode bool, dataFilePath string, downloadMirrorUR
 }
 
 func runServer(port uint16) error {
-	listenAddr := ":"+strconv.Itoa(int(port))
+	listenAddr := ":" + strconv.Itoa(int(port))
 	logger.Printf("Starting ClamAV signature mirror HTTP server on port [%v]",
 		listenAddr)
 	http.HandleFunc("/", handler)
@@ -78,7 +78,7 @@ func scheduleUpdates(verboseMode bool, dataFilePath string, downloadMirrorURL st
 
 	run := func() {
 		err := sigupdate.RunSignatureUpdate(verboseMode, dataFilePath,
-			downloadMirrorURL, diffCountThreshold);
+			downloadMirrorURL, diffCountThreshold)
 
 		if err != nil {
 			logger.Println(err)

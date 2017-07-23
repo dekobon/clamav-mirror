@@ -1,26 +1,25 @@
 package sigupdate
 
 import (
-	"io/ioutil"
-	"os"
-	"github.com/dekobon/clamav-mirror/utils"
-	"fmt"
-	"net/http"
 	"errors"
-	"time"
+	"fmt"
+	"github.com/dekobon/clamav-mirror/utils"
 	"io"
+	"io/ioutil"
+	"net/http"
+	"os"
 	"strings"
+	"time"
 )
 
 import (
 	"github.com/hashicorp/errwrap"
 )
 
-
 // Function that downloads a file from the mirror URL and moves it into the
 // data directory if it was successfully downloaded.
 func downloadFile(filename string, localFilePath string,
-downloadMirrorURL string) (int, error) {
+	downloadMirrorURL string) (int, error) {
 
 	unknownStatus := -1
 	downloadURL := downloadMirrorURL + "/" + filename

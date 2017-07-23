@@ -254,7 +254,6 @@ func updateFile(dataFilePath string,
 				break
 			}
 
-
 		}
 	}
 
