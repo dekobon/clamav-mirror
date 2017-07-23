@@ -81,14 +81,6 @@ func downloadFile(filename string, localFilePath string,
 		return response.StatusCode, errors.New(msg)
 	}
 
-	lastModified, err := http.ParseTime(response.Header.Get("Last-Modified"))
-
-	if err != nil {
-		logger.Printf("Error parsing last-modified header [%v] for file: %v",
-			response.Header.Get("Last-Modified"), downloadURL)
-		lastModified = time.Now()
-	}
-
 	defer response.Body.Close()
 
 	n, err := io.Copy(output, response.Body)
@@ -99,9 +91,39 @@ func downloadFile(filename string, localFilePath string,
 		return response.StatusCode, errwrap.Wrapf(msg, err)
 	}
 
-	if isItOkToOverwrite(filename, localFilePath, output.Name(), oldSignatureInfo) {
+	var newSignatureInfo SignatureInfo
+
+	if strings.HasSuffix(filename, ".cvd") && oldSignatureInfo != (SignatureInfo{}) {
+		info, err := readSignatureInfo(output.Name())
+
+		// If there is a problem with the new file, we don't overwrite the original
+		if err != nil {
+			return unknownStatus, err
+		}
+
+		newSignatureInfo = info
+	}
+
+	if isItOkToOverwrite(filename, oldSignatureInfo, newSignatureInfo) {
 		/* Change the last modified time so that we have a record that corresponds to the
 		 * server's timestamps. */
+
+		var lastModified time.Time
+
+		if newSignatureInfo == (SignatureInfo{}) {
+			modified, err := http.ParseTime(response.Header.Get("Last-Modified"))
+
+			if err != nil {
+				logger.Printf("Error parsing last-modified header [%v] for file: %v",
+					response.Header.Get("Last-Modified"), downloadURL)
+				modified = time.Now()
+			}
+
+			lastModified = modified
+		} else {
+			lastModified = newSignatureInfo.BuildTime
+		}
+
 		os.Chtimes(output.Name(), lastModified, lastModified)
 		os.Rename(output.Name(), localFilePath)
 
@@ -120,18 +142,9 @@ func downloadFile(filename string, localFilePath string,
 }
 
 // Function that checks to see if we can overwrite a file with a newly downloaded file
-func isItOkToOverwrite(filename string, originalFilePath string, newFileTempPath string,
-	oldSignatureInfo SignatureInfo) bool {
-
+func isItOkToOverwrite(filename string, oldSignatureInfo SignatureInfo, newSignatureInfo SignatureInfo) bool {
 	if !strings.HasSuffix(filename, ".cvd") || oldSignatureInfo == (SignatureInfo{}){
 		return true
-	}
-
-	newSignatureInfo, err := readSignatureInfo(newFileTempPath)
-
-	// If there is a problem with the new file, we don't overwrite the original
-	if err != nil {
-		return false
 	}
 
 	isNewer := newSignatureInfo.Version > oldSignatureInfo.Version
