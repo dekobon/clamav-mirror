@@ -161,6 +161,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 
 		if modifiedSince.After(stat.ModTime()) || modifiedSince.Equal(stat.ModTime()) {
 			w.WriteHeader(http.StatusNotModified)
+			return
 		}
 	}
 
