@@ -90,6 +90,7 @@ func scheduleUpdates(verboseMode bool, dataFilePath string, downloadMirrorURL st
 
 	c := cron.New()
 	c.AddFunc(cronSchedule, run)
+	c.Start()
 
 	return nil
 }
