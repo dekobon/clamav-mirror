@@ -108,6 +108,7 @@ func validFileRequested(path string, file string) bool {
 
 func handler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Server", "ClamAV Mirror")
+	w.Header().Add("X-Robots-Tag", "noindex, nofollow, noarchive")
 
 	// Outright reject large paths before doing any processing
 	if len(r.URL.Path) > 128 {
@@ -143,9 +144,25 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Last-Modified", stat.ModTime().UTC().Format(http.TimeFormat))
 	w.Header().Set("Content-Type", "application/octet-stream")
 
-	if r.Method == "GET" {
-		logger.Printf("[%v] {%v} %v --> %v", r.Method, r.RemoteAddr, r.URL, dataFilePath)
+	modifiedSince, err := http.ParseTime(r.Header.Get("If-Modified-Since"))
 
+	if err != nil {
+		logger.Printf("Couldn't parse time value [%v]. %v", r.Header.Get("If-Modified-Since"), err)
+	}
+
+	if !(r.Method == "GET" || r.Method == "HEAD") {
+		logger.Printf("[%v] {%v} %v DENIED", r.Method, r.RemoteAddr, r.URL)
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	if modifiedSince.After(stat.ModTime()) || modifiedSince.Equal(stat.ModTime()) {
+		w.WriteHeader(http.StatusNotModified)
+	}
+
+	logger.Printf("[%v] {%v} %v --> %v", r.Method, r.RemoteAddr, r.URL, dataFilePath)
+
+	if r.Method == "GET" {
 		dataFileReader, err := os.Open(dataFilePath)
 		defer dataFileReader.Close()
 
@@ -157,11 +174,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		io.Copy(w, dataFileReader)
-	} else if r.Method == "HEAD" {
-		logger.Printf("[%v] {%v} %v --> %v", r.Method, r.RemoteAddr, r.URL, dataFilePath)
-		w.WriteHeader(http.StatusOK)
-	} else {
-		logger.Printf("[%v] {%v} %v DENIED", r.Method, r.RemoteAddr, r.URL)
-		w.WriteHeader(http.StatusMethodNotAllowed)
 	}
+
+	w.WriteHeader(http.StatusOK)
 }
