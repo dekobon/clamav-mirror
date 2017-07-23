@@ -144,6 +144,8 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/octet-stream")
 
 	if r.Method == "GET" {
+		logger.Printf("[%v] {%v} %v --> %v", r.Method, r.RemoteAddr, r.URL, dataFilePath)
+
 		dataFileReader, err := os.Open(dataFilePath)
 		defer dataFileReader.Close()
 
@@ -156,8 +158,10 @@ func handler(w http.ResponseWriter, r *http.Request) {
 
 		io.Copy(w, dataFileReader)
 	} else if r.Method == "HEAD" {
+		logger.Printf("[%v] {%v} %v --> %v", r.Method, r.RemoteAddr, r.URL, dataFilePath)
 		w.WriteHeader(http.StatusOK)
 	} else {
+		logger.Printf("[%v] {%v} %v DENIED", r.Method, r.RemoteAddr, r.URL)
 		w.WriteHeader(http.StatusMethodNotAllowed)
 	}
 }
