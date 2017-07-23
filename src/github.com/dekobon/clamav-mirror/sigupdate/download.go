@@ -26,7 +26,6 @@ func downloadFile(filename string, localFilePath string,
 
 	output, err := ioutil.TempFile(os.TempDir(), filename+"-")
 
-
 	if verboseMode {
 		logger.Printf("Downloading to temporary file: [%v]", output.Name())
 	}

@@ -144,20 +144,24 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Last-Modified", stat.ModTime().UTC().Format(http.TimeFormat))
 	w.Header().Set("Content-Type", "application/octet-stream")
 
-	modifiedSince, err := http.ParseTime(r.Header.Get("If-Modified-Since"))
-
-	if err != nil {
-		logger.Printf("Couldn't parse time value [%v]. %v", r.Header.Get("If-Modified-Since"), err)
-	}
-
 	if !(r.Method == "GET" || r.Method == "HEAD") {
 		logger.Printf("[%v] {%v} %v DENIED", r.Method, r.RemoteAddr, r.URL)
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
 
-	if modifiedSince.After(stat.ModTime()) || modifiedSince.Equal(stat.ModTime()) {
-		w.WriteHeader(http.StatusNotModified)
+	modifiedSinceString := r.Header.Get("If-Modified-Since")
+
+	if len(modifiedSinceString) > 0 {
+		modifiedSince, err := http.ParseTime(modifiedSinceString)
+
+		if err != nil {
+			logger.Printf("Couldn't parse time value [%v]. %v", r.Header.Get("If-Modified-Since"), err)
+		}
+
+		if modifiedSince.After(stat.ModTime()) || modifiedSince.Equal(stat.ModTime()) {
+			w.WriteHeader(http.StatusNotModified)
+		}
 	}
 
 	logger.Printf("[%v] {%v} %v --> %v", r.Method, r.RemoteAddr, r.URL, dataFilePath)
