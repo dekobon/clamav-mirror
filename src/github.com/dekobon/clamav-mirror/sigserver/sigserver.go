@@ -180,6 +180,4 @@ func handler(w http.ResponseWriter, r *http.Request) {
 
 		io.Copy(w, dataFileReader)
 	}
-
-	w.WriteHeader(http.StatusOK)
 }
