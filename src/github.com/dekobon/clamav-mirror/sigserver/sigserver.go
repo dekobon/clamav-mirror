@@ -19,6 +19,7 @@ import (
 	"github.com/dekobon/clamav-mirror/utils"
 	"io"
 	"path/filepath"
+	"time"
 )
 
 var githash = "unknown"
@@ -143,9 +144,9 @@ func handler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	localModTime := stat.ModTime().UTC()
+	localModTime := stat.ModTime().UTC().Truncate(time.Second)
 
-	w.Header().Set("Last-Modified", stat.ModTime().UTC().Format(http.TimeFormat))
+	w.Header().Set("Last-Modified", stat.ModTime().UTC().Truncate(time.Second).Format(http.TimeFormat))
 	w.Header().Set("Content-Type", "application/octet-stream")
 
 	if !(r.Method == "GET" || r.Method == "HEAD") {

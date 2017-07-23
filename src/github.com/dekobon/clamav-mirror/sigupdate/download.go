@@ -53,7 +53,7 @@ func downloadFile(filename string, localFilePath string,
 		stat, err := os.Stat(localFilePath)
 
 		if err == nil {
-			localModTime := stat.ModTime().UTC().Format(http.TimeFormat)
+			localModTime := stat.ModTime().UTC().Truncate(time.Second).Format(http.TimeFormat)
 			request.Header.Add("If-Modified-Since", localModTime)
 		} else {
 			logger.Printf("Unable to stat local file [%v]. %v", localFilePath, err)
