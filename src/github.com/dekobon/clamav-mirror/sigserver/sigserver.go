@@ -26,20 +26,22 @@ var buildstamp = "unknown"
 var appversion = "unknown"
 
 var logger *log.Logger
-var logFatal *log.Logger
+var logError *log.Logger
 var dataDirectory string
+var verboseMode bool
 
 func init() {
 	logger = log.New(os.Stdout, "", log.LstdFlags)
-	logFatal = log.New(os.Stderr, "", log.LstdFlags|log.Lshortfile)
+	logError = log.New(os.Stderr, "", log.LstdFlags|log.Lshortfile)
 }
 
 // RunUpdaterAndServer is the functional entry point to the application. This
 // function starts the HTTP server and the periodic task executor.
-func RunUpdaterAndServer(verboseMode bool, dataFilePath string, downloadMirrorURL string,
+func RunUpdaterAndServer(verboseModeEnabled bool, dataFilePath string, downloadMirrorURL string,
 	diffCountThreshold uint16, port uint16, refreshHourInterval uint16) error {
 
 	dataDirectory = dataFilePath
+	verboseMode = verboseModeEnabled
 
 	{
 		err := scheduleUpdates(verboseMode, dataFilePath, downloadMirrorURL,
@@ -81,7 +83,7 @@ func scheduleUpdates(verboseMode bool, dataFilePath string, downloadMirrorURL st
 			downloadMirrorURL, diffCountThreshold)
 
 		if err != nil {
-			logger.Println(err)
+			logError.Println(err)
 		}
 	}
 
@@ -136,7 +138,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	stat, err := os.Stat(dataFilePath)
 
 	if err != nil {
-		logger.Printf("Error running stat on file [%v]. %v", dataFilePath, err)
+		logError.Printf("Error running stat on file [%v]. %v", dataFilePath, err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -156,10 +158,14 @@ func handler(w http.ResponseWriter, r *http.Request) {
 		modifiedSince, err := http.ParseTime(modifiedSinceString)
 
 		if err != nil {
-			logger.Printf("Couldn't parse time value [%v]. %v", r.Header.Get("If-Modified-Since"), err)
+			logError.Printf("Couldn't parse time value [%v]. %v", r.Header.Get("If-Modified-Since"), err)
 		}
 
 		if modifiedSince.After(stat.ModTime()) || modifiedSince.Equal(stat.ModTime()) {
+			if verboseMode {
+				logger.Printf("[%v] {%v} %v --> %v (304 Not-Modified)", r.Method, r.RemoteAddr, r.URL, dataFilePath)
+			}
+
 			w.WriteHeader(http.StatusNotModified)
 			return
 		}
@@ -172,7 +178,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 		defer dataFileReader.Close()
 
 		if err != nil {
-			logger.Printf("Error reading [%v] from disk. %v",
+			logError.Printf("Error reading [%v] from disk. %v",
 				dataFilePath, err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return

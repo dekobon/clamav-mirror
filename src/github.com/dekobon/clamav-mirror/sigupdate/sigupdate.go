@@ -23,13 +23,13 @@ import (
 )
 
 var logger *log.Logger
-var logFatal *log.Logger
+var logError *log.Logger
 var sigtoolPath string
 var verboseMode bool
 
 func init() {
 	logger = log.New(os.Stdout, "", log.LstdFlags)
-	logFatal = log.New(os.Stderr, "", log.LstdFlags|log.Lshortfile)
+	logError = log.New(os.Stderr, "", log.LstdFlags|log.Lshortfile)
 }
 
 // RunSignatureUpdate is the functional entry point to the application.
@@ -166,7 +166,7 @@ func findSigtoolPath() (string, error) {
 		execPath, err := filepath.Abs(localPath)
 
 		if err != nil {
-			logger.Printf("Error parsing absolute path for [%v]", localPath)
+			logError.Printf("Error parsing absolute path for [%v]", localPath)
 		} else {
 			return execPath, nil
 		}
