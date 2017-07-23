@@ -26,22 +26,6 @@ func downloadFile(filename string, localFilePath string,
 
 	output, err := ioutil.TempFile(os.TempDir(), filename+"-")
 
-	/* For all non-cvd files, skip downloading the file if our local copy is
-	 * newer than the remote copy. For .cvd files, the only authoritative way
-	 * to know what is newer is to use sigtool. */
-	if utils.Exists(localFilePath) {
-		newer, err := checkIfRemoteIsNewer(localFilePath, downloadURL)
-
-		if err != nil {
-			return unknownStatus, err
-		}
-
-		if !newer {
-			logger.Printf("Not downloading [%v] because remote copy is "+
-				"older than local copy", filename)
-			return unknownStatus, nil
-		}
-	}
 
 	if verboseMode {
 		logger.Printf("Downloading to temporary file: [%v]", output.Name())
@@ -54,11 +38,40 @@ func downloadFile(filename string, localFilePath string,
 
 	defer output.Close()
 
-	response, err := http.Get(downloadURL)
+	request, err := http.NewRequest("GET", downloadURL, nil)
+
+	if err != nil {
+		msg := fmt.Sprintf("Unable to create request for: [GEt %v]. {{err}}", downloadURL)
+		return unknownStatus, errwrap.Wrapf(msg, err)
+	}
+
+	request.Header.Add("User-Agent", "github.com/dekobon/clamav-mirror")
+
+	/* For all non-cvd files, skip downloading the file if our local copy is
+	 * newer than the remote copy. For .cvd files, the only authoritative way
+	 * to know what is newer is to use sigtool. */
+	if utils.Exists(localFilePath) {
+		stat, err := os.Stat(localFilePath)
+
+		if err == nil {
+			localModTime := stat.ModTime().UTC().Format(http.TimeFormat)
+			request.Header.Add("If-Modified-Since", localModTime)
+		} else {
+			logger.Printf("Unable to stat local file [%v]. %v", localFilePath, err)
+		}
+	}
+
+	response, err := http.DefaultClient.Do(request)
 
 	if err != nil {
 		msg := fmt.Sprintf("Unable to retrieve file from: [%v]. {{err}}", downloadURL)
 		return unknownStatus, errwrap.Wrapf(msg, err)
+	}
+
+	if response.StatusCode == http.StatusNotModified {
+		logger.Printf("Not downloading [%v] because local copy is newer or the same as remote",
+			filename)
+		return response.StatusCode, nil
 	}
 
 	if response.StatusCode != http.StatusOK {
@@ -102,44 +115,6 @@ func downloadFile(filename string, localFilePath string,
 	}
 
 	return response.StatusCode, nil
-}
-
-// Function that checks to see if the remote file is newer than the locally stored
-// file.
-func checkIfRemoteIsNewer(localFilePath string, downloadURL string) (bool, error) {
-	localFileStat, err := os.Stat(localFilePath)
-
-	if err != nil {
-		return true, errwrap.Wrapf("Unable to stat file. {{err}}", err)
-	}
-
-	localModTime := localFileStat.ModTime()
-	response, err := http.Head(downloadURL)
-
-	if err != nil {
-		msg := fmt.Sprintf("Unable to complete HEAD request: [%v]. {{err}}", downloadURL)
-		return true, errwrap.Wrapf(msg, err)
-	}
-
-	remoteModTime, err := http.ParseTime(response.Header.Get("Last-Modified"))
-
-	if verboseMode {
-		logger.Printf("Local file [%v] last-modified: %v", downloadURL, localModTime)
-		logger.Printf("Remote file [%v] last-modified: %v", downloadURL, remoteModTime)
-	}
-
-	if err != nil {
-		msg := fmt.Sprintf("Error parsing last-modified header [%v] for file [%v]. {{err}}",
-			response.Header.Get("Last-Modified"), downloadURL)
-		return true, errwrap.Wrapf(msg, err)
-	}
-
-	if localModTime.After(remoteModTime) {
-		logger.Printf("Skipping download of [%v] because local copy is newer", downloadURL)
-		return false, nil
-	}
-
-	return true, nil
 }
 
 // Function that checks to see if we can overwrite a file with a newly downloaded file
