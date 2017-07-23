@@ -166,8 +166,8 @@ func handler(w http.ResponseWriter, r *http.Request) {
 
 		modifiedSince = modifiedSince.UTC()
 
-		logger.Printf("Local modification time: %v. Remote modification time: %v",
-			localModTime, modifiedSince)
+		logger.Printf("Local modification time: %v. Remote modification time: %v (%v)",
+			localModTime, modifiedSince, modifiedSinceString)
 
 		if modifiedSince.After(localModTime) || modifiedSince.Equal(localModTime.UTC()) {
 			if verboseMode {
