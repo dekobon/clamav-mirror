@@ -50,8 +50,8 @@ func downloadFile(filename string, localFilePath string,
 	 * to use sigtool. */
 	if oldSignatureInfo != (SignatureInfo{}) {
 		request.Header.Add("If-Modified-Since", oldSignatureInfo.BuildTime.Format(http.TimeFormat))
-	/* For all non-cvd files, skip downloading the file if our local copy is
-	 * newer than the remote copy. */
+		/* For all non-cvd files, skip downloading the file if our local copy is
+		 * newer than the remote copy. */
 	} else if utils.Exists(localFilePath) {
 		stat, err := os.Stat(localFilePath)
 
@@ -143,7 +143,7 @@ func downloadFile(filename string, localFilePath string,
 
 // Function that checks to see if we can overwrite a file with a newly downloaded file
 func isItOkToOverwrite(filename string, oldSignatureInfo SignatureInfo, newSignatureInfo SignatureInfo) bool {
-	if !strings.HasSuffix(filename, ".cvd") || oldSignatureInfo == (SignatureInfo{}){
+	if !strings.HasSuffix(filename, ".cvd") || oldSignatureInfo == (SignatureInfo{}) {
 		return true
 	}
 

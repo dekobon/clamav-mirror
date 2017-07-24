@@ -1,13 +1,13 @@
 package sigupdate
 
 import (
-	"strings"
+	"bufio"
 	"errors"
 	"fmt"
-	"strconv"
-	"os/exec"
 	"io"
-	"bufio"
+	"os/exec"
+	"strconv"
+	"strings"
 )
 
 import (
@@ -21,7 +21,7 @@ import (
 // Function that uses the ClamAV sigtool executable to extract metadata
 // from a signature definition file.
 func readSignatureInfo(localFilePath string) (SignatureInfo, error) {
-	var info SignatureInfo = SignatureInfo{}
+	info := SignatureInfo{}
 	metadata, err := readMetadataFromSigtool(localFilePath)
 
 	if err != nil {
@@ -109,4 +109,3 @@ func parseMetadata(reader io.Reader) (map[string]string, error) {
 
 	return entries, nil
 }
-

@@ -21,8 +21,8 @@ type Signature struct {
 
 // SignatureInfo is for storing a Signature's metadata
 type SignatureInfo struct {
-	File string
+	File      string
 	BuildTime time.Time
-	Version int64
-	MD5 string
+	Version   int64
+	MD5       string
 }

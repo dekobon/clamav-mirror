@@ -19,8 +19,8 @@ func TestParseClamAVTimeStamp(t *testing.T) {
 	}
 
 	if !expected.Equal(parsed) {
-		t.Errorf("Timestamps are not equal.\n" +
-			"Expected: %v\n" +
+		t.Errorf("Timestamps are not equal.\n"+
+			"Expected: %v\n"+
 			"Actual  : %v",
 			expected, parsed)
 	}
