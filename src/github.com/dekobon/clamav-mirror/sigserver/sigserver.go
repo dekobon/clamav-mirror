@@ -2,29 +2,25 @@ package sigserver
 
 import (
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 )
 
 import (
-	"github.com/hashicorp/errwrap"
+	"github.com/go-errors/errors"
 	"github.com/robfig/cron"
 )
 
 import (
 	"github.com/dekobon/clamav-mirror/sigupdate"
 	"github.com/dekobon/clamav-mirror/utils"
-	"io"
-	"path/filepath"
-	"time"
 )
-
-var githash = "unknown"
-var buildstamp = "unknown"
-var appversion = "unknown"
 
 var logger *log.Logger
 var logError *log.Logger
@@ -49,7 +45,7 @@ func RunUpdaterAndServer(verboseModeEnabled bool, dataFilePath string, downloadM
 			diffCountThreshold, refreshHourInterval)
 
 		if err != nil {
-			return errwrap.Wrapf("Error scheduling periodic updates. {{err}}", err)
+			return errors.WrapPrefix(err, "Error scheduling periodic updates", 1).Err
 		}
 	}
 
@@ -57,7 +53,7 @@ func RunUpdaterAndServer(verboseModeEnabled bool, dataFilePath string, downloadM
 		err := runServer(port)
 
 		if err != nil {
-			return errwrap.Wrapf("Error running HTTP server. {{err}}", err)
+			return errors.WrapPrefix(err, "Error starting HTTP server", 1).Err
 		}
 	}
 

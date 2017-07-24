@@ -1,7 +1,6 @@
 package sigupdate
 
 import (
-	"errors"
 	"fmt"
 	"github.com/dekobon/clamav-mirror/utils"
 	"io"
@@ -13,7 +12,7 @@ import (
 )
 
 import (
-	"github.com/hashicorp/errwrap"
+	"github.com/go-errors/errors"
 )
 
 // Function that downloads a file from the mirror URL and moves it into the
@@ -31,8 +30,8 @@ func downloadFile(filename string, localFilePath string,
 	}
 
 	if err != nil {
-		msg := fmt.Sprintf("Unable to create file: [%v]. {{err}}", output.Name())
-		return unknownStatus, errwrap.Wrapf(msg, err)
+		msg := fmt.Sprintf("Unable to create file [%v]", output.Name())
+		return unknownStatus, errors.WrapPrefix(err, msg, 1)
 	}
 
 	defer output.Close()
@@ -40,8 +39,8 @@ func downloadFile(filename string, localFilePath string,
 	request, err := http.NewRequest("GET", downloadURL, nil)
 
 	if err != nil {
-		msg := fmt.Sprintf("Unable to create request for: [GEt %v]. {{err}}", downloadURL)
-		return unknownStatus, errwrap.Wrapf(msg, err)
+		msg := fmt.Sprintf("Unable to create request for: [GEt %v]", downloadURL)
+		return unknownStatus, errors.WrapPrefix(err, msg, 1)
 	}
 
 	request.Header.Add("User-Agent", "github.com/dekobon/clamav-mirror")
@@ -66,8 +65,8 @@ func downloadFile(filename string, localFilePath string,
 	response, err := http.DefaultClient.Do(request)
 
 	if err != nil {
-		msg := fmt.Sprintf("Unable to retrieve file from: [%v]. {{err}}", downloadURL)
-		return unknownStatus, errwrap.Wrapf(msg, err)
+		msg := fmt.Sprintf("Unable to retrieve file from [%v]", downloadURL)
+		return unknownStatus, errors.WrapPrefix(err, msg, 1)
 	}
 
 	if response.StatusCode == http.StatusNotModified {
@@ -86,9 +85,9 @@ func downloadFile(filename string, localFilePath string,
 	n, err := io.Copy(output, response.Body)
 
 	if err != nil {
-		msg := fmt.Sprintf("Error copying data from URL [%v] to local file [%v]. {{err}}",
+		msg := fmt.Sprintf("Error copying data from URL [%v] to local file [%v]",
 			downloadURL, localFilePath)
-		return response.StatusCode, errwrap.Wrapf(msg, err)
+		return response.StatusCode, errors.WrapPrefix(err, msg, 1)
 	}
 
 	var newSignatureInfo SignatureInfo

@@ -16,8 +16,12 @@ func Exists(filePath string) (exists bool) {
 	return exists
 }
 
-// IsWritable function that determines if a given directory
-// can be written to.
-func IsWritable(directory string) (writable bool) {
-	return unix.Access(directory, unix.W_OK) == nil
+// IsWritable determines if a given directory or file can be written to.
+func IsWritable(path string) (writable bool) {
+	return unix.Access(path, unix.W_OK) == nil
+}
+
+// IsReadable determines if a given directory or file can be read from.
+func IsReadable(path string) (readable bool) {
+	return unix.Access(path, unix.R_OK) == nil
 }

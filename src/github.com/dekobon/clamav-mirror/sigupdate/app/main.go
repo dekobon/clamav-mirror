@@ -8,6 +8,7 @@ import (
 )
 
 import (
+	"github.com/go-errors/errors"
 	"github.com/pborman/getopt"
 )
 
@@ -26,7 +27,7 @@ func main() {
 	err := sigupdate.RunSignatureUpdate(parseCliFlags())
 
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal(err.(*errors.Error).ErrorStack())
 	}
 }
 
@@ -67,6 +68,12 @@ func parseCliFlags() (bool, string, string, uint16) {
 	if err != nil {
 		msg := fmt.Sprintf("Unable to parse absolute path of data file path: %v",
 			*dataFilePart)
+		log.Fatal(msg)
+	}
+
+	if !utils.IsReadable(dataFileAbsPath) {
+		msg := fmt.Sprintf("Data file path doesn't have read access for "+
+			"current user at path: %v", dataFileAbsPath)
 		log.Fatal(msg)
 	}
 

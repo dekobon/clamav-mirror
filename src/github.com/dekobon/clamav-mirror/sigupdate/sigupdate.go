@@ -1,7 +1,6 @@
 package sigupdate
 
 import (
-	"errors"
 	"fmt"
 	"log"
 	"net"
@@ -12,7 +11,7 @@ import (
 )
 
 import (
-	"github.com/hashicorp/errwrap"
+	"github.com/go-errors/errors"
 )
 
 import (
@@ -98,13 +97,13 @@ func pullTxtRecord(mirrorDomain string) (string, error) {
 	mirrorTxtRecords, err := net.LookupTXT(mirrorDomain)
 
 	if err != nil {
-		msg := fmt.Sprintf("Unable to resolve TXT record for %v. {{err}}", mirrorDomain)
-		return "", errwrap.Wrapf(msg, err)
+		msg := fmt.Sprintf("Unable to resolve TXT record for [%v]", mirrorDomain)
+		return "", errors.WrapPrefix(err, msg, 1)
 	}
 
 	if len(mirrorTxtRecords) < 1 {
-		msg := fmt.Sprintf("No TXT records returned for %v. {{err}}", mirrorDomain)
-		return "", errwrap.Wrapf(msg, err)
+		msg := fmt.Sprintf("No TXT records returned for [%v]. {{err}}", mirrorDomain)
+		return "", errors.WrapPrefix(err, msg, 1)
 	}
 
 	return mirrorTxtRecords[0], nil
@@ -120,25 +119,25 @@ func parseTxtRecord(mirrorTxtRecord string) (SignatureVersions, error) {
 	mainv, err := strconv.ParseInt(s[1], 10, 64)
 
 	if err != nil {
-		return versions, errwrap.Wrapf("Error parsing main version. {{err}}", err)
+		return versions, errors.WrapPrefix(err, "Error parsing main version", 1)
 	}
 
 	daily, err := strconv.ParseInt(s[2], 10, 64)
 
 	if err != nil {
-		return versions, errwrap.Wrapf("Error parsing daily version. {{err}}", err)
+		return versions, errors.WrapPrefix(err, "Error parsing daily version:", 1)
 	}
 
 	safebrowsingv, err := strconv.ParseInt(s[6], 10, 64)
 
 	if err != nil {
-		return versions, errwrap.Wrapf("Error parsing safe browsing version. {{err}}", err)
+		return versions, errors.WrapPrefix(err, "Error parsing safe browsing version", 1)
 	}
 
 	bytecodev, err := strconv.ParseInt(s[7], 10, 64)
 
 	if err != nil {
-		return versions, errwrap.Wrapf("Error parsing bytecode version. {{err}}", err)
+		return versions, errors.WrapPrefix(err, "Error parsing bytecode version", 1)
 	}
 
 	versions = SignatureVersions{
@@ -202,6 +201,14 @@ func updateFile(dataFilePath string,
 				"initiating diff based update", localFilePath)
 		}
 
+		if !utils.IsReadable(localFilePath) {
+			return errors.Errorf("Unable to read file [%v]", localFilePath)
+		}
+
+		if !utils.IsWritable(localFilePath) {
+			return errors.Errorf("Unable to write to file [%v]", localFilePath)
+		}
+
 		downloadNewBaseSignature = false
 	} else {
 		logger.Printf("Local copy of [%v] does not exist - initiating download.",
@@ -217,7 +224,7 @@ func updateFile(dataFilePath string,
 			"The file will be downloaded again. Original Error: %v", localFilePath, err)
 		downloadNewBaseSignature = true
 	} else {
-		if verboseMode {
+		if verboseMode && signatureInfo != (SignatureInfo{}) {
 			logger.Printf("%v metadata: [File=%v,BuildTime=%v,Version=%v,MD5=%v]",
 				filename, signatureInfo.File, signatureInfo.BuildTime, signatureInfo.Version,
 				signatureInfo.MD5)

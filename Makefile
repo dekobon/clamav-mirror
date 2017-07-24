@@ -4,7 +4,7 @@ DATE        ?= $(shell date -u +%FT%T%z)
 VERSION     ?= $(shell cat $(CURDIR)/.version 2> /dev/null || echo unknown)
 GITHASH     ?= $(shell git rev-parse HEAD)
 
-GOPATH       = $(CURDIR)/.gopath~
+GOPATH       = $(CURDIR)/.gopath
 BIN          = $(GOPATH)/bin
 BASE         = $(GOPATH)/src/$(PACKAGE)
 PKGS         = $(or $(PKG),$(shell cd $(BASE) && env GOPATH=$(GOPATH) $(GO) list ./... | grep -v "^$(PACKAGE)/vendor/"))
@@ -27,7 +27,7 @@ all: fmt lint vendor | $(BASE) sigupdate sigserver
 $(BASE): ; $(info $(M) setting GOPATH…)
 	@mkdir -p $(GOPATH)/src/github.com
 	@ln -sf $(CURDIR)/src/$(PACKAGE_ROOT) $(GOPATH)/src/$(PACKAGE_ROOT)
-	@ln -sf $(CURDIR)/vendor $(GOPATH)/src/vendor
+	@cp -ra $(CURDIR)/vendor/* $(GOPATH)/src/
 
 # Tools
 

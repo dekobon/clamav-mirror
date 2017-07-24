@@ -2,7 +2,6 @@ package sigupdate
 
 import (
 	"bufio"
-	"errors"
 	"fmt"
 	"io"
 	"os/exec"
@@ -11,10 +10,11 @@ import (
 )
 
 import (
-	"github.com/hashicorp/errwrap"
+	"github.com/go-errors/errors"
 )
 
 import (
+	"bytes"
 	"github.com/dekobon/clamav-mirror/utils"
 )
 
@@ -31,17 +31,17 @@ func readSignatureInfo(localFilePath string) (SignatureInfo, error) {
 	buildTime, err := utils.ParseClamAVTimeStamp(metadata["build time"])
 
 	if err != nil {
-		msg := fmt.Sprintf("Error parsing build time [%v]. {{err}}",
+		msg := fmt.Sprintf("Error parsing build time [%v]",
 			metadata["build time"])
-		return info, errwrap.Wrapf(msg, err)
+		return info, errors.WrapPrefix(err, msg, 1)
 	}
 
 	version, err := strconv.ParseInt(metadata["version"], 10, 64)
 
 	if err != nil {
-		msg := fmt.Sprintf("Error converting [%v] to 64-bit integer. {{err}}",
+		msg := fmt.Sprintf("Error converting [%v] to 64-bit integer",
 			metadata["version"])
-		return info, errwrap.Wrapf(msg, err)
+		return info, errors.WrapPrefix(err, msg, 1)
 	}
 
 	info.File = metadata["file"]
@@ -57,19 +57,27 @@ func readMetadataFromSigtool(localFilePath string) (map[string]string, error) {
 	stdout, err := cmd.StdoutPipe()
 
 	if err != nil {
-		return nil, errwrap.Wrapf("Error instantiating sigtool command. {{err}}", err)
+		return nil, errors.WrapPrefix(err, "Error configuring STDOUT for sigtool", 1)
+	}
+
+	stderr, err := cmd.StderrPipe()
+
+	if err != nil {
+		return nil, errors.WrapPrefix(err, "Error configuring STDERR for sigtool", 1)
 	}
 
 	defer stdout.Close()
 
 	if err := cmd.Start(); err != nil {
-		return nil, errwrap.Wrapf("Error running sigtool. {{err}}", err)
+		return nil, errors.WrapPrefix(err, "Error running sigtool", 1)
 	}
 
 	metadata, err := parseMetadata(stdout)
+	stderrBuf := new(bytes.Buffer)
+	stderrBuf.ReadFrom(stderr)
 
 	if err := cmd.Wait(); err != nil {
-		return nil, errwrap.Wrapf("Error waiting for sigtool STDOUT to flush", err)
+		return nil, errors.WrapPrefix(err, stderrBuf.String(), 1)
 	}
 
 	return metadata, nil
@@ -104,7 +112,7 @@ func parseMetadata(reader io.Reader) (map[string]string, error) {
 	}
 
 	if err := scanner.Err(); err != nil {
-		return nil, errwrap.Wrapf("Error parsing sigtool input", err)
+		return nil, errors.WrapPrefix(err, "Error parsing sigtool input", 1)
 	}
 
 	return entries, nil

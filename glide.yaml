@@ -6,7 +6,7 @@ owners:
    email: elijah@zupancic.name
    homepage: http://elijah.zupancic.name
 import:
-- package: github.com/hashicorp/errwrap
+- package: github.com/go-errors/errors
 - package: github.com/pborman/getopt
 - package: github.com/robfig/cron
 - package: golang.org/x/sys/unix
