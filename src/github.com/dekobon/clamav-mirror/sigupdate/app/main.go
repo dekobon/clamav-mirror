@@ -32,7 +32,9 @@ func main() {
 }
 
 // Function that parses the CLI options passed to the application.
-func parseCliFlags() (bool, string, string, uint16) {
+func parseCliFlags() (verbose bool, dataFile string, diffThreshold string,
+	downloadMirror uint16, dnsDbInfoDomain string) {
+
 	verbosePart := getopt.BoolLong("verbose", 'v',
 		"Enable verbose mode with additional debugging information")
 	versionPart := getopt.BoolLong("version", 'V',
@@ -43,6 +45,9 @@ func parseCliFlags() (bool, string, string, uint16) {
 		100, "Number of diffs to download until we redownload the signature files")
 	downloadMirrorPart := getopt.StringLong("download-mirror-url", 'm',
 		"http://database.clamav.net", "URL to download signature updates from")
+	dnsDbInfoDomainPart := getopt.StringLong("clamav-dns-db-info-domain", 'i',
+		"current.cvd.clamav.net", "DNS domain to verify the virus database "+
+			"version via TXT record")
 
 	getopt.Parse()
 
@@ -83,5 +88,5 @@ func parseCliFlags() (bool, string, string, uint16) {
 		log.Fatal(msg)
 	}
 
-	return *verbosePart, dataFileAbsPath, *downloadMirrorPart, *diffThresholdPart
+	return *verbosePart, dataFileAbsPath, *downloadMirrorPart, *diffThresholdPart, *dnsDbInfoDomainPart
 }

@@ -24,11 +24,7 @@ var appversion = "unknown"
 // Main entry point to the server application. This will allow you to run
 // the server as a stand-alone binary.
 func main() {
-	verboseMode, dataFilePath, downloadMirrorURL,
-		diffCountThreshold, port, refreshHourInterval := parseCliFlags()
-
-	err := sigserver.RunUpdaterAndServer(verboseMode, dataFilePath, downloadMirrorURL,
-		diffCountThreshold, port, refreshHourInterval)
+	err := sigserver.RunUpdaterAndServer(parseCliFlags())
 
 	if err != nil {
 		log.Fatal(err.(*errors.Error).ErrorStack())
@@ -36,7 +32,10 @@ func main() {
 }
 
 // Function that parses the CLI options passed to the application.
-func parseCliFlags() (bool, string, string, uint16, uint16, uint16) {
+func parseCliFlags() (verbose bool, dataFile string, downloadMirror string,
+	diffThreshold uint16, dnsDbInfoDomain string, listenPort uint16,
+	updateHourlyInterval uint16) {
+
 	verbosePart := getopt.BoolLong("verbose", 'v',
 		"Enable verbose mode with additional debugging information")
 	versionPart := getopt.BoolLong("version", 'V',
@@ -47,8 +46,11 @@ func parseCliFlags() (bool, string, string, uint16, uint16, uint16) {
 		100, "Number of diffs to download until we redownload the signature files")
 	downloadMirrorPart := getopt.StringLong("download-mirror-url", 'm',
 		"http://database.clamav.net", "URL to download signature updates from")
+	dnsDbInfoDomainPart := getopt.StringLong("clamav-dns-db-info-domain", 'i',
+		"current.cvd.clamav.net", "DNS domain to verify the virus database "+
+			"version via TXT record")
 	listenPortPart := getopt.Uint16Long("port", 'p',
-		8080, "Port to serve signatures on")
+		80, "Port to serve signatures on")
 	updateHourlyIntervalPart := getopt.Uint16Long("houry-update-interval", 'h',
 		4, "Number of hours to wait between signature updates")
 
@@ -92,5 +94,5 @@ func parseCliFlags() (bool, string, string, uint16, uint16, uint16) {
 	}
 
 	return *verbosePart, dataFileAbsPath, *downloadMirrorPart, *diffThresholdPart,
-		*listenPortPart, *updateHourlyIntervalPart
+		*dnsDbInfoDomainPart, *listenPortPart, *updateHourlyIntervalPart
 }

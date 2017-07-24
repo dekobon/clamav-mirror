@@ -31,7 +31,7 @@ func init() {
 // RunSignatureUpdate is the functional entry point to the application.
 // Use this method to invoke the downloader from external code.
 func RunSignatureUpdate(verboseModeEnabled bool, dataFilePath string, downloadMirrorURL string,
-	diffCountThreshold uint16) error {
+	diffCountThreshold uint16, dnsDbInfoDomain string) error {
 	logger.Println("Updating ClamAV signatures")
 
 	verboseMode = verboseModeEnabled
@@ -52,18 +52,17 @@ func RunSignatureUpdate(verboseModeEnabled bool, dataFilePath string, downloadMi
 		logger.Printf("ClamAV executable sigtool found at path: %v", sigtoolPath)
 	}
 
-	mirrorDomain := "current.cvd.clamav.net"
-	mirrorTxtRecord, err := pullTxtRecord(mirrorDomain)
+	versionTxtRecord, err := pullTxtRecord(dnsDbInfoDomain)
 
 	if err != nil {
 		return err
 	}
 
 	if verboseMode {
-		logger.Printf("TXT record for [%v]: %v", mirrorDomain, mirrorTxtRecord)
+		logger.Printf("TXT record for [%v]: %v", dnsDbInfoDomain, versionTxtRecord)
 	}
 
-	versions, err := parseTxtRecord(mirrorTxtRecord)
+	versions, err := parseTxtRecord(versionTxtRecord)
 
 	if err != nil {
 		return err
@@ -93,16 +92,16 @@ func RunSignatureUpdate(verboseModeEnabled bool, dataFilePath string, downloadMi
 
 // Function that gets retrieves the value of the DNS TXT record published by
 // ClamAV.
-func pullTxtRecord(mirrorDomain string) (string, error) {
-	mirrorTxtRecords, err := net.LookupTXT(mirrorDomain)
+func pullTxtRecord(dnsDbInfoDomain string) (string, error) {
+	mirrorTxtRecords, err := net.LookupTXT(dnsDbInfoDomain)
 
 	if err != nil {
-		msg := fmt.Sprintf("Unable to resolve TXT record for [%v]", mirrorDomain)
+		msg := fmt.Sprintf("Unable to resolve TXT record for [%v]", dnsDbInfoDomain)
 		return "", errors.WrapPrefix(err, msg, 1)
 	}
 
 	if len(mirrorTxtRecords) < 1 {
-		msg := fmt.Sprintf("No TXT records returned for [%v]. {{err}}", mirrorDomain)
+		msg := fmt.Sprintf("No TXT records returned for [%v]. {{err}}", dnsDbInfoDomain)
 		return "", errors.WrapPrefix(err, msg, 1)
 	}
 
