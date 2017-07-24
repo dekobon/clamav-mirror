@@ -10,8 +10,6 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ### Changed
  - Update timestamps are now based on sigtool build times.
 
-## [1.0.2] - 2017-07-21
-
 ### Fixed
  - Fixed plethora of assumption related bugs in update logic.
 
