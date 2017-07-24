@@ -1,3 +1,5 @@
+[![](https://images.microbadger.com/badges/version/dekobon/clamav-mirror.svg)](https://microbadger.com/images/dekobon/clamav-mirror "Get your own version badge on microbadger.com") [![](https://images.microbadger.com/badges/image/dekobon/clamav-mirror.svg)](https://microbadger.com/images/dekobon/clamav-mirror "Get your own image badge on microbadger.com")
+
 ClamAV Private Mirror
 =====================
 
@@ -58,7 +60,7 @@ of versions to download diffs for until we update the base signature data file.
 ### sigserver
 
 The sigserver component is a stand-alone HTTP server that serves ClamAV signatures.
-Signatures will be updated periodically  using the sigupdate component. The update
+Signatures will be updated periodically using the sigupdate component. The update
 interval will be configurable.
 
 #### Usage
