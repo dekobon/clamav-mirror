@@ -27,7 +27,7 @@ all: fmt lint vendor | $(BASE) sigupdate sigserver
 $(BASE): ; $(info $(M) setting GOPATH…)
 	@mkdir -p $(GOPATH)/src/github.com
 	@ln -sf $(CURDIR)/src/$(PACKAGE_ROOT) $(GOPATH)/src/$(PACKAGE_ROOT)
-	@cp -ra $(CURDIR)/vendor/* $(GOPATH)/src/
+	@cp -Ra $(CURDIR)/vendor/* $(GOPATH)/src/
 
 # Tools
 
