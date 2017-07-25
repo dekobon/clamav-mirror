@@ -6,6 +6,12 @@ ClamAV Private Mirror
 This project is intended to be a collection of stand-alone tools and unified
 components that allow for the easy install of a private ClamAV signature mirror.
 
+## Requirements
+
+You will need to have the ClamAV utility `sigtool` installed on your system
+in order to use any of the included components. ClamAV version 0.99.2 has
+been verified as working.
+
 ## Components
 
 ### sigupdate
