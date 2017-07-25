@@ -2,13 +2,17 @@ package sigupdate
 
 import (
 	"fmt"
-	"github.com/dekobon/clamav-mirror/utils"
 	"io"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"time"
+)
+
+import (
+	"github.com/dekobon/clamav-mirror/utils"
 )
 
 import (
@@ -18,10 +22,10 @@ import (
 // Function that downloads a file from the mirror URL and moves it into the
 // data directory if it was successfully downloaded.
 func downloadFile(filename string, localFilePath string,
-	downloadMirrorURL string, oldSignatureInfo SignatureInfo) (int, error) {
+	downloadMirrorURL *url.URL, oldSignatureInfo SignatureInfo) (int, error) {
 
 	unknownStatus := -1
-	downloadURL := downloadMirrorURL + "/" + filename
+	downloadURL := downloadMirrorURL.String() + "/" + filename
 
 	output, err := ioutil.TempFile(os.TempDir(), filename+"-")
 
