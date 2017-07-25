@@ -3,17 +3,17 @@ package sigupdate
 import (
 	"fmt"
 	"log"
+	"net/url"
 	"os"
 	"path/filepath"
 )
 
 import (
-	"github.com/pborman/getopt"
+	"github.com/dekobon/clamav-mirror/utils"
 )
 
 import (
-	"github.com/dekobon/clamav-mirror/utils"
-	"net/url"
+	"github.com/pborman/getopt"
 )
 
 // Config is a data structure that encapsulates the configuration parameters
@@ -26,16 +26,8 @@ type Config struct {
 	DnsDbInfoDomain   string
 }
 
-// AppVersionInfo is a data structure that represents the version information
-// we want to display to users.
-type AppVersionInfo struct {
-	AppVersion    string
-	GitCommitHash string
-	UTCBuildTime  string
-}
-
 // ParseCliFlags parses the CLI options passed to the application.
-func ParseCliFlags(appVersionInfo AppVersionInfo) Config {
+func ParseCliFlags(appVersionInfo utils.AppVersionInfo) Config {
 	verbosePart := getopt.BoolLong("verbose", 'v',
 		"Enable verbose mode with additional debugging information")
 	versionPart := getopt.BoolLong("version", 'V',

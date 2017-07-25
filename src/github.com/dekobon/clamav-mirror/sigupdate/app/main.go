@@ -6,6 +6,7 @@ import (
 
 import (
 	"github.com/dekobon/clamav-mirror/sigupdate"
+	"github.com/dekobon/clamav-mirror/utils"
 )
 
 import (
@@ -19,7 +20,7 @@ var appversion = "unknown"
 // Main entry point to the downloader application. This will allow you to run
 // the downloader as a stand-alone binary.
 func main() {
-	appVersionInfo := sigupdate.AppVersionInfo{
+	appVersionInfo := utils.AppVersionInfo{
 		AppVersion:    appversion,
 		GitCommitHash: githash,
 		UTCBuildTime:  buildstamp,
