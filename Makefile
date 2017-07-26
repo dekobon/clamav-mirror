@@ -143,3 +143,13 @@ help:
 .PHONY: version
 version:
 	@echo $(VERSION)
+
+.PHONY: release
+	@gzip -9k $(CURDIR)/bin/sigserver
+	@gzip -9k $(CURDIR)/bin/sigupdate
+	@mv $(CURDIR)/bin/sigserver $(CURDIR)/bin/sigserver-$(VERSION)-`dpkg --print-architecture`.gz
+	@mv $(CURDIR)/bin/sigupdate $(CURDIR)/bin/sigupdate-$(VERSION)-`dpkg --print-architecture`.gz
+	@sha256sum $(CURDIR)/bin/sigserver-$(VERSION)-`dpkg --print-architecture`.gz
+	@md5sum $(CURDIR)/bin/sigserver-$(VERSION)-`dpkg --print-architecture`.gz
+	@sha256sum $(CURDIR)/bin/sigupdate-$(VERSION)-`dpkg --print-architecture`.gz
+	@md5sum $(CURDIR)/bin/sigupdate-$(VERSION)-`dpkg --print-architecture`.gz
