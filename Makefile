@@ -22,7 +22,7 @@ M = $(shell printf "\033[34;1m▶\033[0m")
 export GOPATH:=$(GOPATH)
 
 .PHONY: all
-all: fmt lint vendor | $(BASE) sigupdate sigserver
+all: fmt lint vendor $(BASE) sigupdate sigserver
 
 $(BASE): ; $(info $(M) setting GOPATH…)
 	@mkdir -p $(GOPATH)/src/github.com
