@@ -2,6 +2,10 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
+## [1.0.3] - 2017-07-25
+### Added
+ - Added environment variable configuration support.
+ 
 ## [1.0.2] - 2017-07-24
 
 ### Added
