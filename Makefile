@@ -154,4 +154,4 @@ release: all
 	@echo "sigupdate-$(VERSION)-$(PLATFORM)-$(ARCH).gz SHA256 `sha256sum $(CURDIR)/bin/sigupdate-$(VERSION)-$(PLATFORM)-$(ARCH).gz | cut -f1 -d' '`"
 	@echo "sigupdate-$(VERSION)-$(PLATFORM)-$(ARCH).gz MD5 `md5sum $(CURDIR)/bin/sigupdate-$(VERSION)-$(PLATFORM)-$(ARCH).gz | cut -f1 -d' '`"
 	@sed -i "s/^ENV SIGSERVER_VERSION .*/ENV SIGSERVER_VERSION $(VERSION)/" $(CURDIR)/Dockerfile
-	@sed -i "s/^ENV SIGSERVER_SHA256SUM .*/ENV SIGSERVER_SHA256SUM `sha256sum $(CURDIR)/bin/sigupdate-$(VERSION)-$(PLATFORM)-$(ARCH).gz | cut -f1 -d' '`/" $(CURDIR)/Dockerfile
+	@sed -i "s/^ENV SIGSERVER_SHA256SUM .*/ENV SIGSERVER_SHA256SUM `sha256sum $(CURDIR)/bin/sigserver-$(VERSION)-$(PLATFORM)-$(ARCH).gz | cut -f1 -d' '`/" $(CURDIR)/Dockerfile
