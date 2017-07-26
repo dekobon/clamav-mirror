@@ -1,13 +1,13 @@
 package sigserver
 
 import (
-	"testing"
 	"os"
+	"testing"
 )
 
 func TestParseEnvVars(t *testing.T) {
 	defaults := Config{
-		Port: 9999,
+		Port:                 9999,
 		UpdateHourlyInterval: 9999,
 	}
 
@@ -17,12 +17,12 @@ func TestParseEnvVars(t *testing.T) {
 	actual := ParseEnvVars(defaults)
 
 	if actual.Port != 8888 {
-		t.Errorf("Expected port 8888 to be parsed from env var SIGSERVER_PORT. " +
+		t.Errorf("Expected port 8888 to be parsed from env var SIGSERVER_PORT. "+
 			"Actual: %v", actual.Port)
 	}
 
 	if actual.UpdateHourlyInterval != 9 {
-		t.Errorf("Expected value 9 to be parsed from env var UPDATE_HOURLY_INTERVAL. " +
+		t.Errorf("Expected value 9 to be parsed from env var UPDATE_HOURLY_INTERVAL. "+
 			"Actual: %v", actual.UpdateHourlyInterval)
 	}
 }
