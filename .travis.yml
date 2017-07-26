@@ -11,6 +11,6 @@ go:
 
 before_install:
   - mkdir -p $HOME/.bin
-  - if [ ! -f $HOME/.bin/glide ]; then; curl -Ls https://github.com/Masterminds/glide/releases/download/v0.12.3/glide-v0.12.3-linux-amd64.tar.gz | tar --strip-components=1 -x -z -C $HOME/.bin linux-amd64/glide; - chmod +x $HOME/.bin/glide; fi
+  - if [ ! -f $HOME/.bin/glide ]; then curl -Ls https://github.com/Masterminds/glide/releases/download/v0.12.3/glide-v0.12.3-linux-amd64.tar.gz | tar --strip-components=1 -x -z -C $HOME/.bin linux-amd64/glide; chmod +x $HOME/.bin/glide; fi
 
 install: PATH=$PATH:$HOME/.bin make clean all test
