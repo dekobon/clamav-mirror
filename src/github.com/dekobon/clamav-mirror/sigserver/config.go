@@ -7,9 +7,9 @@ import (
 import (
 	"github.com/dekobon/clamav-mirror/sigupdate"
 	"github.com/pborman/getopt"
+	"log"
 	"os"
 	"strconv"
-	"log"
 )
 
 // Config is a data structure that encapsulates the configuration parameters
@@ -21,9 +21,10 @@ type Config struct {
 }
 
 var defaultConfig = Config{
-	Port: 80,
+	Port:                 80,
 	UpdateHourlyInterval: 4,
 }
+
 // ParseConfig parses environment variables and command line options for
 // the runtime configuration.
 func ParseConfig(appVersionInfo utils.AppVersionInfo) Config {

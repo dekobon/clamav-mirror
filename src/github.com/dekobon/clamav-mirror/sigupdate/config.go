@@ -28,11 +28,11 @@ type Config struct {
 }
 
 var defaultConfig = Config{
-	Verbose: false,
-	DataFilePath: "/var/clamav/data",
-	DiffThreshold: 100,
+	Verbose:           false,
+	DataFilePath:      "/var/clamav/data",
+	DiffThreshold:     100,
 	DownloadMirrorURL: defaultMirrorURL(),
-	DNSDbInfoDomain: "current.cvd.clamav.net",
+	DNSDbInfoDomain:   "current.cvd.clamav.net",
 }
 
 func defaultMirrorURL() *url.URL {
@@ -62,7 +62,7 @@ func ParseEnvVars(defaults Config) Config {
 	}
 
 	if dataFilePath, present := os.LookupEnv("DATA_FILE_PATH"); present {
-		config.DataFilePath = dataFilePath;
+		config.DataFilePath = dataFilePath
 	} else {
 		config.DataFilePath = defaultConfig.DataFilePath
 	}
@@ -79,8 +79,8 @@ func ParseEnvVars(defaults Config) Config {
 		config.DiffThreshold = defaults.DiffThreshold
 	}
 
-	if downloadMirrorUrl, present := os.LookupEnv("DOWNLOAD_MIRROR_URL"); present {
-		u, err := url.Parse(downloadMirrorUrl)
+	if downloadMirrorURL, present := os.LookupEnv("DOWNLOAD_MIRROR_URL"); present {
+		u, err := url.Parse(downloadMirrorURL)
 
 		if err != nil {
 			log.Fatal("Error parsing DOWNLOAD_MIRROR_URL", err)
