@@ -41,23 +41,23 @@ Usage: sigupdate [-vV] [-d value] [-i value] [-m value] [-t value] [parameters .
  -V, --version  Display the version and exit
 ```
 
-##### Data Directory (`data-file-path`)
+##### Data Directory (`data-file-path` or env `DATA_FILE_PATH`)
 Usage of the sigupdate utility requires a directory that is writable by the executing
 user. Specify that directory with the `-d` flag.
 
-##### Download Mirror URL (`download-mirror-url`)
+##### Download Mirror URL (`download-mirror-url` or env `DOWNLOAD_MIRROR_URL`)
 The default URL for downloading updates is `http://database.clamav.net`. However,
 that URL doesn't make use of the global mirrors available. Please refer to the [ClamAV
 mirrors page](https://www.clamav.net/documents/mirrors) for a list of region specific
 mirrors. For example, if you are in the USA, you may want to use the URL:
 `http://db.us.clamav.net` to download signatures from a list of mirrors in the US region.
 
-##### DNS Version Database Domain (`clamav-dns-db-info-domain`)
+##### DNS Version Database Domain (`clamav-dns-db-info-domain` or env `DNS_DB_DOMAIN`)
 The default domain mapping to a TXT record for resolving that latest ClamAV
 signatures is: `current.cvd.clamav.net`. Change this value if you want to pull
 signature version information from your own domain.
 
-##### Diff Count Threshold (`diff-count-threshold`)
+##### Diff Count Threshold (`diff-count-threshold` or env `DIFF_THRESHOLD`)
 Sometimes your signatures may be so out of date that there are not enough diff files
 available on the mirrors to provide updates. In particular, this happens if you start
 with definitions that come directly from a package manager. This value sets the number
@@ -93,10 +93,10 @@ Usage: sigserver [-vV] [-d value] [-h value] [-i value] [-m value] [-p value] [-
 In addition to all of the parameters available to `sigupdate`, `sigserver` has
 the following configuration parameters:
 
-##### Port (`port`)
+##### Port (`port` or env `SIGSERVER_PORT`)
 Port to listen for HTTP requests on - defaults to port 80.
 
-##### Hourly Update Interval (`houry-update-interval`)
+##### Hourly Update Interval (`houry-update-interval` or `UPDATE_HOURLY_INTERVAL`)
 This parameter configures many hours to wait before updating the signatures from
 the ClamAV severs.
 

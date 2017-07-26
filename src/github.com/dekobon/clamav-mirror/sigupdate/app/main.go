@@ -26,8 +26,8 @@ func main() {
 		UTCBuildTime:  buildstamp,
 	}
 
-	cliFlags := sigupdate.ParseCliFlags(appVersionInfo)
-	err := sigupdate.RunSignatureUpdate(cliFlags)
+	config := sigupdate.ParseConfig(appVersionInfo)
+	err := sigupdate.RunSignatureUpdate(config)
 
 	if err != nil {
 		log.Fatal(err.(*errors.Error).ErrorStack())

@@ -11,7 +11,6 @@ import (
 import (
 	"github.com/dekobon/clamav-mirror/sigserver"
 	"github.com/dekobon/clamav-mirror/utils"
-	"github.com/dekobon/clamav-mirror/sigupdate"
 )
 
 var githash = "unknown"
@@ -27,9 +26,9 @@ func main() {
 		UTCBuildTime:  buildstamp,
 	}
 
-	cliFlags := sigserver.ParseCliFlags(appVersionInfo)
+	cliFlags := sigserver.ParseConfig(appVersionInfo)
 
-	err := sigserver.RunUpdaterAndServer(parseCliFlags())
+	err := sigserver.RunUpdaterAndServer(cliFlags)
 
 	if err != nil {
 		log.Fatal(err.(*errors.Error).ErrorStack())

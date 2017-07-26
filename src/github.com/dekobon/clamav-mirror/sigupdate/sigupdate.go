@@ -52,14 +52,14 @@ func RunSignatureUpdate(config Config) error {
 		logger.Printf("ClamAV executable sigtool found at path: %v", sigtoolPath)
 	}
 
-	versionTxtRecord, err := pullTxtRecord(config.DnsDbInfoDomain)
+	versionTxtRecord, err := pullTxtRecord(config.DNSDbInfoDomain)
 
 	if err != nil {
 		return err
 	}
 
 	if verboseMode {
-		logger.Printf("TXT record for [%v]: %v", config.DnsDbInfoDomain, versionTxtRecord)
+		logger.Printf("TXT record for [%v]: %v", config.DNSDbInfoDomain, versionTxtRecord)
 	}
 
 	versions, err := parseTxtRecord(versionTxtRecord)
