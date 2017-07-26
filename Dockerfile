@@ -22,13 +22,14 @@ LABEL org.label-schema.name="ClamAV Private Mirror" \
 RUN yum install -y epel-release && \
     yum update -y && \
     yum install -y clamav && \
-    curl --retry 7 --fail -Lso /tmp/sigserver.gz "https://github.com/dekobon/clamav-mirror/releases/download/$SIGSERVER_VERSION/sigserver-$SIGSERVER_VERSION-linux-amd64.gz" && \
-    echo "$SIGSERVER_SHA256SUM" | sha256sum -c && \
+    yum clean all
+
+RUN curl --retry 7 --fail -Lso /tmp/sigserver.gz "https://github.com/dekobon/clamav-mirror/releases/download/$SIGSERVER_VERSION/sigserver-$SIGSERVER_VERSION-linux-amd64.gz" && \
+    echo "$SIGSERVER_SHA256SUM  /tmp/sigserver.gz" | sha256sum -c && \
     gunzip /tmp/sigserver.gz && \
     mv /tmp/sigserver /usr/local/bin/ && \
     chmod +x /usr/local/bin/sigserver && \
-    mkdir -p /var/clamav/data && \
-    yum clean all
+    mkdir -p /var/clamav/data
 
 EXPOSE 80
 
