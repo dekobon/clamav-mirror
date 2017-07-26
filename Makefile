@@ -144,7 +144,7 @@ help:
 version:
 	@echo $(VERSION)
 
-.PHONY: release
+release:
 	@gzip -9k $(CURDIR)/bin/sigserver
 	@gzip -9k $(CURDIR)/bin/sigupdate
 	@mv $(CURDIR)/bin/sigserver $(CURDIR)/bin/sigserver-$(VERSION)-`dpkg --print-architecture`.gz
