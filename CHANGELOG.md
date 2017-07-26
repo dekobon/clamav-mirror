@@ -2,6 +2,10 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
+## [1.0.4] - ?
+### Fixed
+ - [SIGSERVER_PORT is not being parsed correctly from environment variables](https://github.com/dekobon/clamav-mirror/issues/3)
+
 ## [1.0.3] - 2017-07-25
 ### Added
  - Added environment variable configuration support.

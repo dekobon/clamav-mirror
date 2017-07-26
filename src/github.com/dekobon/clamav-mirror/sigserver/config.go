@@ -1,15 +1,18 @@
 package sigserver
 
 import (
+	"log"
+	"os"
+	"strconv"
+)
+
+import (
 	"github.com/dekobon/clamav-mirror/utils"
 )
 
 import (
 	"github.com/dekobon/clamav-mirror/sigupdate"
 	"github.com/pborman/getopt"
-	"log"
-	"os"
-	"strconv"
 )
 
 // Config is a data structure that encapsulates the configuration parameters
@@ -55,7 +58,7 @@ func ParseEnvVars(defaults Config) Config {
 			log.Fatal("Error parsing UPDATE_HOURLY_INTERVAL environment variable")
 		}
 
-		config.Port = uint16(i)
+		config.UpdateHourlyInterval = uint16(i)
 	} else {
 		config.UpdateHourlyInterval = defaults.UpdateHourlyInterval
 	}
