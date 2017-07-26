@@ -9,6 +9,8 @@ BIN          = $(GOPATH)/bin
 BASE         = $(GOPATH)/src/$(PACKAGE)
 PKGS         = $(or $(PKG),$(shell cd $(BASE) && env GOPATH=$(GOPATH) $(GO) list ./... | grep -v "^$(PACKAGE)/vendor/"))
 TESTPKGS     = $(shell env GOPATH=$(GOPATH) $(GO) list -f '{{ if or .TestGoFiles .XTestGoFiles }}{{ .ImportPath }}{{ end }}' $(PKGS))
+ARCH         = $(shell uname -m | sed -e 's/x86_64/amd64/g' -e 's/i686/i386/g')
+PLATFORM     = $(shell uname | tr '[:upper:]' '[:lower:]')
 
 GO      = go
 GODOC   = godoc
@@ -144,12 +146,12 @@ help:
 version:
 	@echo $(VERSION)
 
-release:
-	@gzip -9k $(CURDIR)/bin/sigserver
-	@gzip -9k $(CURDIR)/bin/sigupdate
-	@mv $(CURDIR)/bin/sigserver $(CURDIR)/bin/sigserver-$(VERSION)-`dpkg --print-architecture`.gz
-	@mv $(CURDIR)/bin/sigupdate $(CURDIR)/bin/sigupdate-$(VERSION)-`dpkg --print-architecture`.gz
-	@sha256sum $(CURDIR)/bin/sigserver-$(VERSION)-`dpkg --print-architecture`.gz
-	@md5sum $(CURDIR)/bin/sigserver-$(VERSION)-`dpkg --print-architecture`.gz
-	@sha256sum $(CURDIR)/bin/sigupdate-$(VERSION)-`dpkg --print-architecture`.gz
-	@md5sum $(CURDIR)/bin/sigupdate-$(VERSION)-`dpkg --print-architecture`.gz
+release: all
+	@gzip -9 < $(CURDIR)/bin/sigserver > $(CURDIR)/bin/sigserver-$(VERSION)-$(PLATFORM)-$(ARCH).gz
+	@gzip -9 <$(CURDIR)/bin/sigupdate > $(CURDIR)/bin/sigupdate-$(VERSION)-$(PLATFORM)-$(ARCH).gz
+	@echo "sigserver-$(VERSION)-$(PLATFORM)-$(ARCH).gz SHA256 `sha256sum $(CURDIR)/bin/sigserver-$(VERSION)-$(PLATFORM)-$(ARCH).gz | cut -f1 -d' '`"
+	@echo "sigserver-$(VERSION)-$(PLATFORM)-$(ARCH).gz MD5 `md5sum $(CURDIR)/bin/sigserver-$(VERSION)-$(PLATFORM)-$(ARCH).gz | cut -f1 -d' '`"
+	@echo "sigupdate-$(VERSION)-$(PLATFORM)-$(ARCH).gz SHA256 `sha256sum $(CURDIR)/bin/sigupdate-$(VERSION)-$(PLATFORM)-$(ARCH).gz | cut -f1 -d' '`"
+	@echo "sigupdate-$(VERSION)-$(PLATFORM)-$(ARCH).gz MD5 `md5sum $(CURDIR)/bin/sigupdate-$(VERSION)-$(PLATFORM)-$(ARCH).gz | cut -f1 -d' '`"
+	@sed -i "s/^ENV SIGSERVER_VERSION .*/ENV SIGSERVER_VERSION $(VERSION)/" $(CURDIR)/Dockerfile
+	@sed -i "s/^ENV SIGSERVER_SHA256SUM .*/ENV SIGSERVER_SHA256SUM `sha256sum $(CURDIR)/bin/sigupdate-$(VERSION)-$(PLATFORM)-$(ARCH).gz | cut -f1 -d' '`/" $(CURDIR)/Dockerfile
