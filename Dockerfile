@@ -2,7 +2,8 @@ FROM centos:7
 
 MAINTAINER Elijah Zupancic <elijah@zupancic.name>
 
-ENV SIGSERVER_VERSION 1.0.2
+ENV SIGSERVER_VERSION 1.0.3
+ENV SIGSERVER_SHA256SUM 620ce0207539c67c58bbb5b6e9cd790ddd4623e14e6fa5e9b47813977a121586
 ENV VERBOSE true
 ENV DATA_FILE_PATH /var/clamav/data
 ENV DIFF_THRESHOLD 100
@@ -22,7 +23,7 @@ RUN yum install -y epel-release && \
     yum update -y && \
     yum install -y clamav && \
     curl --retry 7 --fail -Lso /tmp/sigserver.gz "https://github.com/dekobon/clamav-mirror/releases/download/$SIGSERVER_VERSION/sigserver-$SIGSERVER_VERSION-linux-amd64.gz" && \
-    echo 'f5ff94a9cd18e278ae38adeab3db8db2479ce35457a35ce27d2b70746f6743ed  /tmp/sigserver.gz' | sha256sum -c && \
+    echo "$SIGSERVER_SHA256SUM" | sha256sum -c && \
     gunzip /tmp/sigserver.gz && \
     mv /tmp/sigserver /usr/local/bin/ && \
     chmod +x /usr/local/bin/sigserver && \
