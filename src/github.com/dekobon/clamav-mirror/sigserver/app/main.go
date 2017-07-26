@@ -1,15 +1,11 @@
 package main
 
 import (
-	"fmt"
 	"log"
-	"os"
-	"path/filepath"
 )
 
 import (
 	"github.com/go-errors/errors"
-	"github.com/pborman/getopt"
 )
 
 import (
@@ -24,75 +20,17 @@ var appversion = "unknown"
 // Main entry point to the server application. This will allow you to run
 // the server as a stand-alone binary.
 func main() {
-	err := sigserver.RunUpdaterAndServer(parseCliFlags())
+	appVersionInfo := utils.AppVersionInfo{
+		AppVersion:    appversion,
+		GitCommitHash: githash,
+		UTCBuildTime:  buildstamp,
+	}
+
+	cliFlags := sigserver.ParseConfig(appVersionInfo)
+
+	err := sigserver.RunUpdaterAndServer(cliFlags)
 
 	if err != nil {
 		log.Fatal(err.(*errors.Error).ErrorStack())
 	}
-}
-
-// Function that parses the CLI options passed to the application.
-func parseCliFlags() (verbose bool, dataFile string, downloadMirror string,
-	diffThreshold uint16, dnsDbInfoDomain string, listenPort uint16,
-	updateHourlyInterval uint16) {
-
-	verbosePart := getopt.BoolLong("verbose", 'v',
-		"Enable verbose mode with additional debugging information")
-	versionPart := getopt.BoolLong("version", 'V',
-		"Display the version and exit")
-	dataFilePart := getopt.StringLong("data-file-path", 'd',
-		"/var/clamav/data", "Path to ClamAV data files")
-	diffThresholdPart := getopt.Uint16Long("diff-count-threshold", 't',
-		100, "Number of diffs to download until we redownload the signature files")
-	downloadMirrorPart := getopt.StringLong("download-mirror-url", 'm',
-		"http://database.clamav.net", "URL to download signature updates from")
-	dnsDbInfoDomainPart := getopt.StringLong("clamav-dns-db-info-domain", 'i',
-		"current.cvd.clamav.net", "DNS domain to verify the virus database "+
-			"version via TXT record")
-	listenPortPart := getopt.Uint16Long("port", 'p',
-		80, "Port to serve signatures on")
-	updateHourlyIntervalPart := getopt.Uint16Long("houry-update-interval", 'h',
-		4, "Number of hours to wait between signature updates")
-
-	getopt.Parse()
-
-	if *versionPart {
-		fmt.Println("sigupdate")
-		fmt.Println("")
-		fmt.Printf("Version        : %v\n", appversion)
-		fmt.Printf("Git Commit Hash: %v\n", githash)
-		fmt.Printf("UTC Build Time : %v\n", buildstamp)
-		fmt.Print("License        : MPLv2\n")
-
-		os.Exit(0)
-	}
-
-	if !utils.Exists(*dataFilePart) {
-		msg := fmt.Sprintf("Data file path doesn't exist or isn't accessible: %v",
-			*dataFilePart)
-		log.Fatal(msg)
-	}
-
-	dataFileAbsPath, err := filepath.Abs(*dataFilePart)
-
-	if err != nil {
-		msg := fmt.Sprintf("Unable to parse absolute path of data file path: %v",
-			*dataFilePart)
-		log.Fatal(msg)
-	}
-
-	if !utils.IsReadable(dataFileAbsPath) {
-		msg := fmt.Sprintf("Data file path doesn't have read access for "+
-			"current user at path: %v", dataFileAbsPath)
-		log.Fatal(msg)
-	}
-
-	if !utils.IsWritable(dataFileAbsPath) {
-		msg := fmt.Sprintf("Data file path doesn't have write access for "+
-			"current user at path: %v", dataFileAbsPath)
-		log.Fatal(msg)
-	}
-
-	return *verbosePart, dataFileAbsPath, *downloadMirrorPart, *diffThresholdPart,
-		*dnsDbInfoDomainPart, *listenPortPart, *updateHourlyIntervalPart
 }

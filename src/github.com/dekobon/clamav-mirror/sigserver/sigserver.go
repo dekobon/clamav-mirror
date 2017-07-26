@@ -34,15 +34,13 @@ func init() {
 
 // RunUpdaterAndServer is the functional entry point to the application. This
 // function starts the HTTP server and the periodic task executor.
-func RunUpdaterAndServer(verboseModeEnabled bool, dataFilePath string, downloadMirrorURL string,
-	diffCountThreshold uint16, dnsDbInfoDomain string, port uint16, refreshHourInterval uint16) error {
-
-	dataDirectory = dataFilePath
-	verboseMode = verboseModeEnabled
+func RunUpdaterAndServer(config Config) error {
+	updateConfig := config.UpdateConfig
+	dataDirectory = updateConfig.DataFilePath
+	verboseMode = updateConfig.Verbose
 
 	{
-		err := scheduleUpdates(verboseMode, dataFilePath, downloadMirrorURL,
-			diffCountThreshold, dnsDbInfoDomain, refreshHourInterval)
+		err := scheduleUpdates(config)
 
 		if err != nil {
 			return errors.WrapPrefix(err, "Error scheduling periodic updates", 1).Err
@@ -50,7 +48,7 @@ func RunUpdaterAndServer(verboseModeEnabled bool, dataFilePath string, downloadM
 	}
 
 	{
-		err := runServer(port)
+		err := runServer(config.Port)
 
 		if err != nil {
 			return errors.WrapPrefix(err, "Error starting HTTP server", 1).Err
@@ -70,14 +68,12 @@ func runServer(port uint16) error {
 	return nil
 }
 
-func scheduleUpdates(verboseMode bool, dataFilePath string, downloadMirrorURL string,
-	diffCountThreshold uint16, dnsDbInfoDomain string, refreshHourInterval uint16) error {
+func scheduleUpdates(config Config) error {
 
-	cronSchedule := fmt.Sprintf("@every %dh", refreshHourInterval)
+	cronSchedule := fmt.Sprintf("@every %dh", config.UpdateHourlyInterval)
 
 	run := func() {
-		err := sigupdate.RunSignatureUpdate(verboseMode, dataFilePath,
-			downloadMirrorURL, diffCountThreshold, dnsDbInfoDomain)
+		err := sigupdate.RunSignatureUpdate(config.UpdateConfig)
 
 		if err != nil {
 			logError.Println(err)

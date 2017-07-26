@@ -16,6 +16,7 @@ import (
 
 import (
 	"github.com/dekobon/clamav-mirror/utils"
+	"net/url"
 )
 
 var logger *log.Logger
@@ -30,14 +31,13 @@ func init() {
 
 // RunSignatureUpdate is the functional entry point to the application.
 // Use this method to invoke the downloader from external code.
-func RunSignatureUpdate(verboseModeEnabled bool, dataFilePath string, downloadMirrorURL string,
-	diffCountThreshold uint16, dnsDbInfoDomain string) error {
+func RunSignatureUpdate(config Config) error {
 	logger.Println("Updating ClamAV signatures")
 
-	verboseMode = verboseModeEnabled
+	verboseMode = config.Verbose
 
 	if verboseMode {
-		logger.Printf("Data file directory: %v", dataFilePath)
+		logger.Printf("Data file directory: %v", config.DataFilePath)
 	}
 
 	sigtoolParsedPath, err := findSigtoolPath()
@@ -52,14 +52,14 @@ func RunSignatureUpdate(verboseModeEnabled bool, dataFilePath string, downloadMi
 		logger.Printf("ClamAV executable sigtool found at path: %v", sigtoolPath)
 	}
 
-	versionTxtRecord, err := pullTxtRecord(dnsDbInfoDomain)
+	versionTxtRecord, err := pullTxtRecord(config.DNSDbInfoDomain)
 
 	if err != nil {
 		return err
 	}
 
 	if verboseMode {
-		logger.Printf("TXT record for [%v]: %v", dnsDbInfoDomain, versionTxtRecord)
+		logger.Printf("TXT record for [%v]: %v", config.DNSDbInfoDomain, versionTxtRecord)
 	}
 
 	versions, err := parseTxtRecord(versionTxtRecord)
@@ -79,8 +79,8 @@ func RunSignatureUpdate(verboseModeEnabled bool, dataFilePath string, downloadMi
 	}
 
 	for _, signature := range signaturesToUpdate {
-		err = updateFile(dataFilePath, signature,
-			downloadMirrorURL, diffCountThreshold)
+		err = updateFile(config.DataFilePath, signature,
+			config.DownloadMirrorURL, config.DiffThreshold)
 
 		if err != nil {
 			return err
@@ -184,7 +184,7 @@ func findSigtoolPath() (string, error) {
 // Function that updates the data files for a given signature by either
 // downloading the datafile or downloading diffs.
 func updateFile(dataFilePath string,
-	signature Signature, downloadMirrorURL string, diffCountThreshold uint16) error {
+	signature Signature, downloadMirrorURL *url.URL, diffCountThreshold uint16) error {
 	filePrefix := signature.Name
 	currentVersion := signature.Version
 	separator := string(filepath.Separator)

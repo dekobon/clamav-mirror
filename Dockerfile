@@ -3,6 +3,13 @@ FROM centos:7
 MAINTAINER Elijah Zupancic <elijah@zupancic.name>
 
 ENV SIGSERVER_VERSION 1.0.2
+ENV VERBOSE true
+ENV DATA_FILE_PATH /var/clamav/data
+ENV DIFF_THRESHOLD 100
+ENV DOWNLOAD_MIRROR_URL http://database.clamav.net
+ENV DNS_DB_DOMAIN current.cvd.clamav.net
+ENV SIGSERVER_PORT 80
+ENV UPDATE_HOURLY_INTERVAL 4
 
 # Metadata for Docker containers: http://label-schema.org/
 LABEL org.label-schema.name="ClamAV Private Mirror" \
