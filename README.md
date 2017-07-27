@@ -1,3 +1,4 @@
+[![Build Status](https://travis-ci.org/dekobon/clamav-mirror.svg?branch=travis)](https://travis-ci.org/dekobon/clamav-mirror)
 [![](https://images.microbadger.com/badges/image/dekobon/clamav-mirror.svg)](https://microbadger.com/images/dekobon/clamav-mirror "Get your own image badge on microbadger.com")
 
 ClamAV Private Mirror
