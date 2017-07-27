@@ -22,15 +22,15 @@ Q = $(if $(filter 1,$V),,@)
 M = $(shell printf "\033[34;1m▶\033[0m")
 
 export GOPATH:=$(GOPATH)
-$(shell mkdir -p $(GOPATH)/src/github.com)
-$(shell ln -sf $(CURDIR)/src/$(PACKAGE_ROOT) $(GOPATH)/src/$(PACKAGE_ROOT))
 
 .PHONY: all
+
 all: fmt lint sigupdate sigserver
 
-$(BASE): vendor; $(info $(M) setting GOPATH…)
+$(BASE):
+	$(info $(M) setting GOPATH…)
+	@mkdir -p $(GOPATH)/src/github.com
 	@ln -sf $(CURDIR)/src/$(PACKAGE_ROOT) $(GOPATH)/src/$(PACKAGE_ROOT)
-	@cp -Ra $(CURDIR)/vendor/* $(GOPATH)/src/
 
 # Tools
 
@@ -104,12 +104,12 @@ lint: vendor $(GOLINT) ; $(info $(M) running golint…) @ ## Run golint
 	 done ; exit $$ret
 
 .PHONY: fmt
-fmt: ; $(info $(M) running gofmt…) @ ## Run gofmt on all source files
+fmt: vendor; $(info $(M) running gofmt…) @ ## Run gofmt on all source files
 	@ret=0 && for d in $$($(GO) list -f '{{.Dir}}' ./... | grep -v /vendor/); do \
 		$(GOFMT) -l -w $$d/*.go || ret=$$? ; \
 	 done ; exit $$ret
 
-sigserver: $(GOPATH)/src/github.com vendor $(BASE)
+sigserver: vendor
 	$(info $(M) building sigserver…) @ ## Build sigupdate binary
 	$Q cd $(BASE) && $(GO) build \
 		-tags release \
@@ -117,7 +117,7 @@ sigserver: $(GOPATH)/src/github.com vendor $(BASE)
 		-o $(CURDIR)/bin/sigserver \
         $(GOPATH)/src/$(PACKAGE)/sigserver/app/*.go
 
-sigupdate: $(GOPATH)/src/github.com vendor $(BASE)
+sigupdate: vendor
 	$(info $(M) building sigupdate…) @ ## Build sigserver binary
 	$Q cd $(BASE) && $(GO) build \
 		-tags release \
@@ -131,10 +131,11 @@ glide.lock: glide.yaml; $(info $(M) updating dependencies…)
 	$Q cd $(BASE) && $(GLIDE) update
 	@touch $@
 
-vendor: glide.lock; $(info $(M) retrieving dependencies…)
+vendor: $(BASE) glide.lock; $(info $(M) retrieving dependencies…)
 	$Q cd $(BASE) && $(GLIDE) --quiet install
 	@ln -nsf . vendor/src
 	@touch $@
+	@cp -Ra $(CURDIR)/vendor/* $(GOPATH)/src/
 
 # Misc
 
