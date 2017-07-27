@@ -22,35 +22,41 @@ Q = $(if $(filter 1,$V),,@)
 M = $(shell printf "\033[34;1m▶\033[0m")
 
 export GOPATH:=$(GOPATH)
+$(shell mkdir -p $(GOPATH)/src/github.com)
+$(shell ln -sf $(CURDIR)/src/$(PACKAGE_ROOT) $(GOPATH)/src/$(PACKAGE_ROOT))
 
 .PHONY: all
-all: fmt lint vendor $(BASE) sigupdate sigserver
+all: fmt lint sigupdate sigserver
 
-$(BASE): ; $(info $(M) setting GOPATH…)
-	@mkdir -p $(GOPATH)/src/github.com
+$(BASE): vendor; $(info $(M) setting GOPATH…)
 	@ln -sf $(CURDIR)/src/$(PACKAGE_ROOT) $(GOPATH)/src/$(PACKAGE_ROOT)
 	@cp -Ra $(CURDIR)/vendor/* $(GOPATH)/src/
 
 # Tools
 
 GOLINT = $(BIN)/golint
-$(BIN)/golint: | $(BASE) ; $(info $(M) building golint…)
+$(BIN)/golint:
+	$(info $(M) building golint…)
 	$Q go get github.com/golang/lint/golint
 
 GOCOVMERGE = $(BIN)/gocovmerge
-$(BIN)/gocovmerge: | $(BASE) ; $(info $(M) building gocovmerge…)
+$(BIN)/gocovmerge:
+	$(info $(M) building gocovmerge…)
 	$Q go get github.com/wadey/gocovmerge
 
 GOCOV = $(BIN)/gocov
-$(BIN)/gocov: | $(BASE) ; $(info $(M) building gocov…)
+$(BIN)/gocov:
+	$(info $(M) building gocov…)
 	$Q go get github.com/axw/gocov/...
 
 GOCOVXML = $(BIN)/gocov-xml
-$(BIN)/gocov-xml: | $(BASE) ; $(info $(M) building gocov-xml…)
+$(BIN)/gocov-xml:
+	$(info $(M) building gocov-xml…)
 	$Q go get github.com/AlekSi/gocov-xml
 
 GO2XUNIT = $(BIN)/go2xunit
-$(BIN)/go2xunit: | $(BASE) ; $(info $(M) building go2xunit…)
+$(BIN)/go2xunit:
+	$(info $(M) building go2xunit…)
 	$Q go get github.com/tebeka/go2xunit
 
 # Tests
@@ -63,10 +69,10 @@ test-verbose: ARGS=-v            ## Run tests in verbose mode with coverage repo
 test-race:    ARGS=-race         ## Run tests with race detector
 $(TEST_TARGETS): NAME=$(MAKECMDGOALS:test-%=%)
 $(TEST_TARGETS): test
-check test tests: fmt lint vendor | $(BASE) ; $(info $(M) running $(NAME:%=% )tests…) @ ## Run tests
+check test tests: fmt lint sigupdate sigserver; $(info $(M) running $(NAME:%=% )tests…) @ ## Run tests
 	$Q cd $(BASE) && $(GO) test -timeout $(TIMEOUT)s $(ARGS) $(TESTPKGS)
 
-test-xml: fmt lint vendor | $(BASE) $(GO2XUNIT) ; $(info $(M) running $(NAME:%=% )tests…) @ ## Run tests with xUnit output
+test-xml: fmt lint sigupdate sigserver $(GO2XUNIT) ; $(info $(M) running $(NAME:%=% )tests…) @ ## Run tests with xUnit output
 	$Q cd $(BASE) && 2>&1 $(GO) test -timeout 20s -v $(TESTPKGS) | tee test/tests.output
 	$(GO2XUNIT) -fail -input test/tests.output -output test/tests.xml
 
@@ -92,7 +98,7 @@ test-coverage: fmt lint vendor test-coverage-tools | $(BASE) ; $(info $(M) runni
 	$Q $(GOCOV) convert $(COVERAGE_PROFILE) | $(GOCOVXML) > $(COVERAGE_XML)
 
 .PHONY: lint
-lint: vendor | $(BASE) $(GOLINT) ; $(info $(M) running golint…) @ ## Run golint
+lint: vendor $(GOLINT) ; $(info $(M) running golint…) @ ## Run golint
 	$Q cd $(BASE) && ret=0 && for pkg in $(PKGS); do \
 		test -z "$$($(GOLINT) $$pkg | tee /dev/stderr)" || ret=1 ; \
 	 done ; exit $$ret
@@ -103,7 +109,7 @@ fmt: ; $(info $(M) running gofmt…) @ ## Run gofmt on all source files
 		$(GOFMT) -l -w $$d/*.go || ret=$$? ; \
 	 done ; exit $$ret
 
-sigserver:
+sigserver: $(GOPATH)/src/github.com vendor $(BASE)
 	$(info $(M) building sigserver…) @ ## Build sigupdate binary
 	$Q cd $(BASE) && $(GO) build \
 		-tags release \
@@ -111,7 +117,7 @@ sigserver:
 		-o $(CURDIR)/bin/sigserver \
         $(GOPATH)/src/$(PACKAGE)/sigserver/app/*.go
 
-sigupdate:
+sigupdate: $(GOPATH)/src/github.com vendor $(BASE)
 	$(info $(M) building sigupdate…) @ ## Build sigserver binary
 	$Q cd $(BASE) && $(GO) build \
 		-tags release \
@@ -121,10 +127,11 @@ sigupdate:
 
 # Dependency management
 
-glide.lock: glide.yaml | $(BASE) ; $(info $(M) updating dependencies…)
+glide.lock: glide.yaml; $(info $(M) updating dependencies…)
 	$Q cd $(BASE) && $(GLIDE) update
 	@touch $@
-vendor: glide.lock | $(BASE) ; $(info $(M) retrieving dependencies…)
+
+vendor: glide.lock; $(info $(M) retrieving dependencies…)
 	$Q cd $(BASE) && $(GLIDE) --quiet install
 	@ln -nsf . vendor/src
 	@touch $@
