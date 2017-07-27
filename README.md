@@ -13,6 +13,11 @@ You will need to have the ClamAV utility `sigtool` installed on your system
 in order to use any of the included components. ClamAV version 0.99.2 has
 been verified as working.
 
+## Design
+
+Please refer to the [design document](doc/DESIGN.md) for an overview of how 
+the application updates signatures or mirrors them as a server.
+
 ## Components
 
 ### sigupdate
