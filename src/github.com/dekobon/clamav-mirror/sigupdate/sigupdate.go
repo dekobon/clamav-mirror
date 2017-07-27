@@ -40,7 +40,7 @@ func RunSignatureUpdate(config Config) error {
 		logger.Printf("Data file directory: %v", config.DataFilePath)
 	}
 
-	sigtoolParsedPath, err := findSigtoolPath()
+	sigtoolParsedPath, err := findSigtoolPath(os.Getenv("PATH"))
 
 	if err != nil {
 		return err
@@ -165,11 +165,10 @@ func parseTxtRecord(mirrorTxtRecord string) (SignatureVersions, error) {
 }
 
 // Function that finds the path to the sigtool utility on the local system.
-func findSigtoolPath() (string, error) {
+func findSigtoolPath(envPath string) (string, error) {
 	execName := "sigtool"
 	separator := string(os.PathSeparator)
 	envPathSeparator := string(os.PathListSeparator)
-	envPath := os.Getenv("PATH")
 	localPath := "." + separator + execName
 
 	if utils.Exists(localPath) {
