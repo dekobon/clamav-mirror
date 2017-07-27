@@ -36,7 +36,7 @@ func readSignatureInfo(localFilePath string) (SignatureInfo, error) {
 		return info, errors.WrapPrefix(err, msg, 1)
 	}
 
-	version, err := strconv.ParseInt(metadata["version"], 10, 64)
+	version, err := strconv.ParseUint(metadata["version"], 10, 64)
 
 	if err != nil {
 		msg := fmt.Sprintf("Error converting [%v] to 64-bit integer",

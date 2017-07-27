@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -16,7 +17,6 @@ import (
 
 import (
 	"github.com/dekobon/clamav-mirror/utils"
-	"net/url"
 )
 
 var logger *log.Logger
@@ -113,33 +113,48 @@ func pullTxtRecord(dnsDbInfoDomain string) (string, error) {
 func parseTxtRecord(mirrorTxtRecord string) (SignatureVersions, error) {
 	var versions SignatureVersions
 
+	if len(mirrorTxtRecord) < 15 {
+		return versions, errors.Errorf("Invalid TXT record - records must "+
+			"have at least 16 characters. Actual: [%v]", mirrorTxtRecord)
+	}
+
+	delimCount := strings.Count(mirrorTxtRecord, ":")
+
+	if delimCount < 7 || delimCount > 7 {
+		return versions, errors.Errorf("Invalid TXT record - Invalid number "+
+			"of delimiters characters [:] in record. Total delimiters: [%v]", delimCount)
+	}
+
 	s := strings.SplitN(mirrorTxtRecord, ":", 8)
 
-	mainv, err := strconv.ParseInt(s[1], 10, 64)
+	clamavVersion := s[0]
+
+	mainv, err := strconv.ParseUint(s[1], 10, 64)
 
 	if err != nil {
 		return versions, errors.WrapPrefix(err, "Error parsing main version", 1)
 	}
 
-	daily, err := strconv.ParseInt(s[2], 10, 64)
+	daily, err := strconv.ParseUint(s[2], 10, 64)
 
 	if err != nil {
 		return versions, errors.WrapPrefix(err, "Error parsing daily version:", 1)
 	}
 
-	safebrowsingv, err := strconv.ParseInt(s[6], 10, 64)
+	safebrowsingv, err := strconv.ParseUint(s[6], 10, 64)
 
 	if err != nil {
 		return versions, errors.WrapPrefix(err, "Error parsing safe browsing version", 1)
 	}
 
-	bytecodev, err := strconv.ParseInt(s[7], 10, 64)
+	bytecodev, err := strconv.ParseUint(s[7], 10, 64)
 
 	if err != nil {
 		return versions, errors.WrapPrefix(err, "Error parsing bytecode version", 1)
 	}
 
 	versions = SignatureVersions{
+		ClamAVVersion:       clamavVersion,
 		MainVersion:         mainv,
 		DailyVersion:        daily,
 		SafeBrowsingVersion: safebrowsingv,
@@ -236,7 +251,7 @@ func updateFile(dataFilePath string,
 		/* Attempt to download a diff for each version until we reach the current
 		 * version. */
 		for count := oldVersion + 1; count <= currentVersion; count++ {
-			diffFilename := filePrefix + "-" + strconv.FormatInt(count, 10) + ".cdiff"
+			diffFilename := filePrefix + "-" + strconv.FormatUint(count, 10) + ".cdiff"
 			localDiffFilePath := dataFilePath + separator + diffFilename
 
 			// Don't bother downloading a diff if it already exists
@@ -268,7 +283,7 @@ func updateFile(dataFilePath string,
 	/* If we have too many diffs, we go ahead and download the whole signatures
 	 * after we have the diffs so that our base signature files stay relatively
 	 * current. */
-	if !downloadNewBaseSignature && (currentVersion-oldVersion > int64(diffCountThreshold)) {
+	if !downloadNewBaseSignature && (currentVersion-oldVersion > uint64(diffCountThreshold)) {
 		logger.Printf("Original signature has deviated beyond threshold from diffs, "+
 			"so we are downloading the file [%v] again", filename)
 
