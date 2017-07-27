@@ -50,7 +50,7 @@ func TestInPathFindSigtoolPath(t *testing.T) {
 	}
 }
 
-func TestNotInPathFingSigtoolPath(t *testing.T) {
+func TestNotInPathFindSigtoolPath(t *testing.T) {
 	separator := string(os.PathSeparator)
 	listSeparator := string(os.PathListSeparator)
 
