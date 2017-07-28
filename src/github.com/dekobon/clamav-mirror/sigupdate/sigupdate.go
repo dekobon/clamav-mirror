@@ -206,28 +206,10 @@ func updateFile(dataFilePath string,
 	filename := filePrefix + ".cvd"
 	localFilePath := dataFilePath + separator + filename
 
-	var downloadNewBaseSignature bool
+	downloadNewBaseSignature, err := existsAndIsAccessible(localFilePath)
 
-	if utils.Exists(localFilePath) {
-		if verboseMode {
-			logger.Printf("Local copy of [%v] already exists - "+
-				"initiating diff based update", localFilePath)
-		}
-
-		if !utils.IsReadable(localFilePath) {
-			return errors.Errorf("Unable to read file [%v]", localFilePath)
-		}
-
-		if !utils.IsWritable(localFilePath) {
-			return errors.Errorf("Unable to write to file [%v]", localFilePath)
-		}
-
-		downloadNewBaseSignature = false
-	} else {
-		logger.Printf("Local copy of [%v] does not exist - initiating download.",
-			localFilePath)
-		// Download the signatures for the first time if they don't exist
-		downloadNewBaseSignature = true
+	if err != nil {
+		return err
 	}
 
 	signatureInfo, err := readSignatureInfo(localFilePath)
@@ -301,4 +283,30 @@ func updateFile(dataFilePath string,
 	}
 
 	return nil
+}
+
+// Function that checks to see if the specified file already exists. This function
+// will error if the file path is not readable or not writable.
+func existsAndIsAccessible(localFilePath string) (bool, error) {
+	if utils.Exists(localFilePath) {
+		if verboseMode {
+			logger.Printf("Local copy of [%v] already exists - "+
+				"initiating diff based update", localFilePath)
+		}
+
+		if !utils.IsReadable(localFilePath) {
+			return false, errors.Errorf("Unable to read file [%v]", localFilePath)
+		}
+
+		if !utils.IsWritable(localFilePath) {
+			return false, errors.Errorf("Unable to write to file [%v]", localFilePath)
+		}
+
+		return false, nil
+	} else {
+		logger.Printf("Local copy of [%v] does not exist - initiating download.",
+			localFilePath)
+		// Download the signatures for the first time if they don't exist
+		return true, nil
+	}
 }
