@@ -303,10 +303,10 @@ func existsAndIsAccessible(localFilePath string) (bool, error) {
 		}
 
 		return false, nil
-	} else {
-		logger.Printf("Local copy of [%v] does not exist - initiating download.",
-			localFilePath)
-		// Download the signatures for the first time if they don't exist
-		return true, nil
 	}
+
+	logger.Printf("Local copy of [%v] does not exist - initiating download.",
+		localFilePath)
+	// Download the signatures for the first time if they don't exist
+	return true, nil
 }
