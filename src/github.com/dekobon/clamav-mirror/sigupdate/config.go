@@ -15,6 +15,7 @@ import (
 
 import (
 	"github.com/pborman/getopt"
+	"strings"
 )
 
 // Config is a data structure that encapsulates the configuration parameters
@@ -158,7 +159,15 @@ func ParseCliFlags(appVersionInfo utils.AppVersionInfo, defaults Config) Config 
 		log.Fatal(msg)
 	}
 
-	downloadMirrorURL, err := url.Parse(*downloadMirrorPart)
+	var downloadMirrorServer string
+
+	if !strings.HasPrefix(*downloadMirrorPart, "http") {
+		downloadMirrorServer = "http://" + *downloadMirrorPart
+	} else {
+		downloadMirrorServer = *downloadMirrorPart
+	}
+
+	downloadMirrorURL, err := url.Parse(downloadMirrorServer)
 
 	if err != nil {
 		log.Fatalf("Error parsing URL [%v]: %v", *downloadMirrorPart, err)

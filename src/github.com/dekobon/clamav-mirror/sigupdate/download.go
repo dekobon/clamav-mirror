@@ -1,6 +1,9 @@
 package sigupdate
 
 import (
+	"net"
+	"context"
+	"container/list"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -19,13 +22,142 @@ import (
 	"github.com/go-errors/errors"
 )
 
+type Download struct {
+	Filename string
+	LocalFilePath string
+	oldSignatureInfo SignatureInfo
+}
+
+// resolveMirrorIp resolves all IPs associated with a domain.
+func resolveMirrorIp(domain string) ([]net.IPAddr, error) {
+	c := context.Background()
+	addresses, err := net.DefaultResolver.LookupIPAddr(c, domain)
+
+	if err != nil {
+		msg := fmt.Sprintf("Error resolving domain [%v]", domain)
+		return []net.IPAddr{}, errors.WrapPrefix(err, msg, 1)
+	}
+
+	return addresses, nil
+}
+
+func buildDownloadURL(downloadMirrorURL *url.URL, host net.IPAddr,
+	filename string) *url.URL {
+	hostIp := host.IP.String()
+
+	downloadURL := url.URL{
+		Host: hostIp,
+		ForceQuery: downloadMirrorURL.ForceQuery,
+		Fragment: downloadMirrorURL.Fragment,
+		Opaque: downloadMirrorURL.Opaque,
+		Path: downloadMirrorURL.Path + "/" + filename,
+		RawPath: downloadMirrorURL.RawPath + "/" + filename,
+		RawQuery: downloadMirrorURL.RawQuery,
+		Scheme: downloadMirrorURL.Scheme,
+		User: downloadMirrorURL.User,
+	}
+
+	return &downloadURL
+}
+
+func downloadFilesWithRetry(downloads *list.List, downloadMirrorURL *url.URL) error {
+	addresses, err := resolveMirrorIp(downloadMirrorURL.Host)
+
+	if err != nil {
+		msg := fmt.Sprintf("Unable to resolve host [%v]", downloadMirrorURL.Host)
+		return errors.WrapPrefix(err, msg, 1)
+	}
+
+	// We randomize the list of address so that we are not always
+	// hitting the same mirrors.
+	utils.Shuffle(addresses)
+	mirrorIndex := 0
+	mirrorCount := len(addresses)
+
+	for e := downloads.Front(); e != nil; e = e.Next() {
+		retry:
+
+		d, ok := e.Value.(Download); if !ok {
+			return errors.Errorf("Incorrect type. Expecting Download. " +
+				"Actually: %v", e.Value)
+		}
+
+		if (d == Download{}) {
+			continue
+		}
+
+		downloadURL := buildDownloadURL(downloadMirrorURL, addresses[mirrorIndex],
+			d.Filename)
+
+		statusCode, err := downloadFile(d, downloadURL)
+
+		/* Many times different mirrors will have different .cdiff files
+		 * available. We want to retry with a different mirror in case the
+		 * file can't be found. Alternatively, in the case of 500 errors, we
+		 * also want to try another mirror. */
+		if (statusCode == http.StatusNotFound && mirrorIndex < mirrorCount) ||
+			statusCode > 499{
+
+			mirrorIndex++
+			goto retry
+		}
+
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func downloadWithRetry(download Download, downloadMirrorURL *url.URL) (int, error){
+	addresses, err := resolveMirrorIp(downloadMirrorURL.Host)
+
+	if err != nil {
+		msg := fmt.Sprintf("Unable to resolve host [%v]", downloadMirrorURL.Host)
+		return -1, errors.WrapPrefix(err, msg, 1)
+	}
+
+	// We randomize the list of address so that we are not always
+	// hitting the same mirrors.
+	utils.Shuffle(addresses)
+	mirrorIndex := 0
+	mirrorCount := len(addresses)
+
+	retry:
+	downloadURL := buildDownloadURL(downloadMirrorURL, addresses[mirrorIndex],
+		download.Filename)
+	statusCode, err := downloadFile(download, downloadURL)
+
+	if err != nil && mirrorIndex < mirrorCount {
+		mirrorIndex++
+		goto retry
+	} else if err != nil {
+		return statusCode, err
+	}
+
+	return statusCode, err
+}
+
+func downloadFile(download Download, downloadURL *url.URL) (int, error) {
+	logger.Printf("Attempting to download: %v", downloadURL.String())
+
+	statusCode, err := executeHttpRequest(download.Filename,
+		download.LocalFilePath, downloadURL, download.oldSignatureInfo)
+
+	if verboseMode {
+		logger.Printf("Status code: %v", statusCode)
+	}
+
+	return statusCode, err
+}
+
 // Function that downloads a file from the mirror URL and moves it into the
 // data directory if it was successfully downloaded.
-func downloadFile(filename string, localFilePath string,
-	downloadMirrorURL *url.URL, oldSignatureInfo SignatureInfo) (int, error) {
+func executeHttpRequest(filename string, localFilePath string,
+	downloadURL *url.URL, oldSignatureInfo SignatureInfo) (int, error) {
 
 	unknownStatus := -1
-	downloadURL := downloadMirrorURL.String() + "/" + filename
 
 	output, err := ioutil.TempFile(os.TempDir(), filename+"-")
 
@@ -40,7 +172,7 @@ func downloadFile(filename string, localFilePath string,
 
 	defer output.Close()
 
-	request, err := http.NewRequest("GET", downloadURL, nil)
+	request, err := http.NewRequest("GET", downloadURL.String(), nil)
 
 	if err != nil {
 		msg := fmt.Sprintf("Unable to create request for: [GEt %v]", downloadURL)

@@ -1,6 +1,7 @@
 package sigupdate
 
 import (
+	"container/list"
 	"fmt"
 	"log"
 	"net"
@@ -229,6 +230,8 @@ func updateFile(dataFilePath string,
 	oldVersion := signatureInfo.Version
 
 	if !downloadNewBaseSignature {
+		downloads := list.New()
+
 		/* Attempt to download a diff for each version until we reach the current
 		 * version. */
 		for count := oldVersion + 1; count <= currentVersion; count++ {
@@ -244,20 +247,23 @@ func updateFile(dataFilePath string,
 				continue
 			}
 
-			_, err := downloadFile(diffFilename, localDiffFilePath, downloadMirrorURL,
-				SignatureInfo{})
+			downloads.PushBack(Download{
+				Filename: diffFilename,
+				LocalFilePath: localDiffFilePath,
+				oldSignatureInfo: signatureInfo,
+			})
+		}
 
-			/* Give up attempting to download incremental diffs if we can't find a
-			 * diff file corresponding to the version needed. We just go download
-			 * the main signature file again if we hit this case. */
-			if err != nil {
-				logger.Printf("There was a problem downloading diff [%v] of file [%v]. "+
-					"The file original file [%v] will be downloaded again. Original Error: %v",
-					count, diffFilename, filename, err)
-				downloadNewBaseSignature = true
-				break
-			}
+		err := downloadFilesWithRetry(downloads, downloadMirrorURL)
 
+		/* Give up attempting to download incremental diffs if we can't find a
+		 * diff file corresponding to the version needed. We just go download
+		 * the main signature file again if we hit this case. */
+		if err != nil {
+			logger.Printf("There was a problem downloading diffs [%v]-[%v]. "+
+				"The file original file [%v] will be downloaded again. Last Error: %v",
+				oldVersion + 1, currentVersion, filename, err)
+			downloadNewBaseSignature = true
 		}
 	}
 
@@ -272,8 +278,13 @@ func updateFile(dataFilePath string,
 	}
 
 	if downloadNewBaseSignature {
-		_, err := downloadFile(filename, localFilePath, downloadMirrorURL,
-			signatureInfo)
+		download := Download{
+			Filename: filename,
+			LocalFilePath: localFilePath,
+			oldSignatureInfo: signatureInfo,
+		}
+
+		_, err := downloadWithRetry(download, downloadMirrorURL)
 
 		if err != nil {
 			return err
