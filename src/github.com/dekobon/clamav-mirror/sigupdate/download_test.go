@@ -7,7 +7,7 @@ import (
 func TestWithMultipleARecordsResolveMirrorIP(t *testing.T) {
 	domainWithMultipleARecords := "db.us.clamav.net"
 
-	addresses, err := resolveMirrorIp(domainWithMultipleARecords)
+	addresses, err := resolveMirrorIP(domainWithMultipleARecords)
 
 	if err != nil {
 		t.Errorf("Check your network connection. Resolve error: %v", err)
@@ -18,10 +18,10 @@ func TestWithMultipleARecordsResolveMirrorIP(t *testing.T) {
 	}
 }
 
-func TestWithIPAddressResolveMirrorIP(t *testing.T)  {
+func TestWithIPAddressResolveMirrorIP(t *testing.T) {
 	ip := "127.0.0.1"
 
-	addresses, err := resolveMirrorIp(ip)
+	addresses, err := resolveMirrorIP(ip)
 
 	if err != nil {
 		t.Error(err)

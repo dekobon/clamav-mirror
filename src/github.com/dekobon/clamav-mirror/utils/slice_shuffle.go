@@ -29,8 +29,8 @@ Slice randomization function from: https://stackoverflow.com/a/45274033/33611
 package utils
 
 import (
-	"reflect"
 	"math/rand"
+	"reflect"
 )
 
 // Shuffle psuedo-randomly shuffles a slice's elements.

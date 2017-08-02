@@ -1,12 +1,12 @@
 package sigupdate
 
 import (
-	"net"
-	"context"
 	"container/list"
+	"context"
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -22,14 +22,16 @@ import (
 	"github.com/go-errors/errors"
 )
 
+// Download is a data structure containing the properties used for
+// downloading a signature file.
 type Download struct {
-	Filename string
-	LocalFilePath string
+	Filename         string
+	LocalFilePath    string
 	oldSignatureInfo SignatureInfo
 }
 
-// resolveMirrorIp resolves all IPs associated with a domain.
-func resolveMirrorIp(domain string) ([]net.IPAddr, error) {
+// resolveMirrorIP resolves all IPs associated with a domain.
+func resolveMirrorIP(domain string) ([]net.IPAddr, error) {
 	c := context.Background()
 	addresses, err := net.DefaultResolver.LookupIPAddr(c, domain)
 
@@ -43,25 +45,25 @@ func resolveMirrorIp(domain string) ([]net.IPAddr, error) {
 
 func buildDownloadURL(downloadMirrorURL *url.URL, host net.IPAddr,
 	filename string) *url.URL {
-	hostIp := host.IP.String()
+	hostIP := host.IP.String()
 
 	downloadURL := url.URL{
-		Host: hostIp,
+		Host:       hostIP,
 		ForceQuery: downloadMirrorURL.ForceQuery,
-		Fragment: downloadMirrorURL.Fragment,
-		Opaque: downloadMirrorURL.Opaque,
-		Path: downloadMirrorURL.Path + "/" + filename,
-		RawPath: downloadMirrorURL.RawPath + "/" + filename,
-		RawQuery: downloadMirrorURL.RawQuery,
-		Scheme: downloadMirrorURL.Scheme,
-		User: downloadMirrorURL.User,
+		Fragment:   downloadMirrorURL.Fragment,
+		Opaque:     downloadMirrorURL.Opaque,
+		Path:       downloadMirrorURL.Path + "/" + filename,
+		RawPath:    downloadMirrorURL.RawPath + "/" + filename,
+		RawQuery:   downloadMirrorURL.RawQuery,
+		Scheme:     downloadMirrorURL.Scheme,
+		User:       downloadMirrorURL.User,
 	}
 
 	return &downloadURL
 }
 
 func downloadFilesWithRetry(downloads *list.List, downloadMirrorURL *url.URL) error {
-	addresses, err := resolveMirrorIp(downloadMirrorURL.Host)
+	addresses, err := resolveMirrorIP(downloadMirrorURL.Host)
 
 	if err != nil {
 		msg := fmt.Sprintf("Unable to resolve host [%v]", downloadMirrorURL.Host)
@@ -75,10 +77,11 @@ func downloadFilesWithRetry(downloads *list.List, downloadMirrorURL *url.URL) er
 	mirrorCount := len(addresses)
 
 	for e := downloads.Front(); e != nil; e = e.Next() {
-		retry:
+	retry:
 
-		d, ok := e.Value.(Download); if !ok {
-			return errors.Errorf("Incorrect type. Expecting Download. " +
+		d, ok := e.Value.(Download)
+		if !ok {
+			return errors.Errorf("Incorrect type. Expecting Download. "+
 				"Actually: %v", e.Value)
 		}
 
@@ -96,7 +99,7 @@ func downloadFilesWithRetry(downloads *list.List, downloadMirrorURL *url.URL) er
 		 * file can't be found. Alternatively, in the case of 500 errors, we
 		 * also want to try another mirror. */
 		if (statusCode == http.StatusNotFound && mirrorIndex < mirrorCount) ||
-			statusCode > 499{
+			statusCode > 499 {
 
 			mirrorIndex++
 			goto retry
@@ -110,8 +113,8 @@ func downloadFilesWithRetry(downloads *list.List, downloadMirrorURL *url.URL) er
 	return nil
 }
 
-func downloadWithRetry(download Download, downloadMirrorURL *url.URL) (int, error){
-	addresses, err := resolveMirrorIp(downloadMirrorURL.Host)
+func downloadWithRetry(download Download, downloadMirrorURL *url.URL) (int, error) {
+	addresses, err := resolveMirrorIP(downloadMirrorURL.Host)
 
 	if err != nil {
 		msg := fmt.Sprintf("Unable to resolve host [%v]", downloadMirrorURL.Host)
@@ -124,7 +127,7 @@ func downloadWithRetry(download Download, downloadMirrorURL *url.URL) (int, erro
 	mirrorIndex := 0
 	mirrorCount := len(addresses)
 
-	retry:
+retry:
 	downloadURL := buildDownloadURL(downloadMirrorURL, addresses[mirrorIndex],
 		download.Filename)
 	statusCode, err := downloadFile(download, downloadURL)
@@ -142,7 +145,7 @@ func downloadWithRetry(download Download, downloadMirrorURL *url.URL) (int, erro
 func downloadFile(download Download, downloadURL *url.URL) (int, error) {
 	logger.Printf("Attempting to download: %v", downloadURL.String())
 
-	statusCode, err := executeHttpRequest(download.Filename,
+	statusCode, err := executeHTTPRequest(download.Filename,
 		download.LocalFilePath, downloadURL, download.oldSignatureInfo)
 
 	if verboseMode {
@@ -154,7 +157,7 @@ func downloadFile(download Download, downloadURL *url.URL) (int, error) {
 
 // Function that downloads a file from the mirror URL and moves it into the
 // data directory if it was successfully downloaded.
-func executeHttpRequest(filename string, localFilePath string,
+func executeHTTPRequest(filename string, localFilePath string,
 	downloadURL *url.URL, oldSignatureInfo SignatureInfo) (int, error) {
 
 	unknownStatus := -1

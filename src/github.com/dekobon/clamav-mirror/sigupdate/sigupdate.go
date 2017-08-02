@@ -248,8 +248,8 @@ func updateFile(dataFilePath string,
 			}
 
 			downloads.PushBack(Download{
-				Filename: diffFilename,
-				LocalFilePath: localDiffFilePath,
+				Filename:         diffFilename,
+				LocalFilePath:    localDiffFilePath,
 				oldSignatureInfo: signatureInfo,
 			})
 		}
@@ -262,7 +262,7 @@ func updateFile(dataFilePath string,
 		if err != nil {
 			logger.Printf("There was a problem downloading diffs [%v]-[%v]. "+
 				"The file original file [%v] will be downloaded again. Last Error: %v",
-				oldVersion + 1, currentVersion, filename, err)
+				oldVersion+1, currentVersion, filename, err)
 			downloadNewBaseSignature = true
 		}
 	}
@@ -279,8 +279,8 @@ func updateFile(dataFilePath string,
 
 	if downloadNewBaseSignature {
 		download := Download{
-			Filename: filename,
-			LocalFilePath: localFilePath,
+			Filename:         filename,
+			LocalFilePath:    localFilePath,
 			oldSignatureInfo: signatureInfo,
 		}
 
